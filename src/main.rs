@@ -11,7 +11,7 @@ fn main() {
     let mut mmu = mmu::MMU::new();
     let mut cpu = cpu::CPU::new(mmu);
 
-    for _ in 0..5 {
+    loop {
         cpu.step();
     }
     cpu.dump();
