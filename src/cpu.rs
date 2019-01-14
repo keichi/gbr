@@ -231,11 +231,9 @@ impl CPU {
 
         let a = self.a;
 
-        println!("A={:02x} imm={:02x}", a, imm);
-
         self.set_f_z(a == imm);
         self.set_f_n(true);
-        // self.set_f_h(??);
+        // TODO self.set_f_h(??);
         self.set_f_c(a < imm);
     }
 
@@ -309,6 +307,22 @@ impl CPU {
         self.set_f_z(z);
         self.set_f_n(false);
         self.set_f_h(true);
+    }
+
+    /// Set bit
+    fn set(&mut self, pos: u8, reg: u8) {
+        debug!("SET {}, {}", pos, Self::reg_to_string(reg));
+
+        let val = self.read_r8(reg);
+        self.write_r8(reg, val | (1 << pos));
+    }
+
+    /// Reset bit
+    fn res(&mut self, pos: u8, reg: u8) {
+        debug!("RES {}, {}", pos, Self::reg_to_string(reg));
+
+        let val = self.read_r8(reg);
+        self.write_r8(reg, val & !(1 << pos));
     }
 
     fn _rl(&mut self, reg: u8) {
@@ -676,6 +690,8 @@ impl CPU {
             0x10...0x17 => self.rl(reg),
             0x18...0x1f => self.rr(reg),
             0x40...0x7f => self.bit(pos, reg),
+            0x80...0xbf => self.res(pos, reg),
+            0xc0...0xff => self.set(pos, reg),
             _ => println!("Unimplemented opcode 0xcb 0x{:x}", opcode),
         }
     }
