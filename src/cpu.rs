@@ -50,9 +50,21 @@ impl CPU {
         (self.b as u16) << 8 | self.c as u16
     }
 
+    /// Write BC register
+    fn set_bc(&mut self, val: u16) {
+        self.b = (val >> 8 & 0xff) as u8;
+        self.c = (val & 0xff) as u8;
+    }
+
     /// Read DE register
     fn de(&self) -> u16 {
         (self.d as u16) << 8 | self.e as u16
+    }
+
+    /// Write DE register
+    fn set_de(&mut self, val: u16) {
+        self.d = (val >> 8 & 0xff) as u8;
+        self.e = (val & 0xff) as u8;
     }
 
     /// Read HL register
@@ -270,12 +282,27 @@ impl CPU {
         self.set_f_h(true);
     }
 
+    fn _rl(&mut self, reg: u8) {
+        let orig = self.read_r8(reg);
+        let res = orig.rotate_left(1) | (if self.f_c() { 1 } else { 0 });
+        self.write_r8(reg, res);
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(false);
+        self.set_f_c(orig >> 7 & 1 == 1);
+    }
+
     /// Rotate left through carry
     fn rl(&mut self, reg: u8) {
         debug!("RL {}", Self::reg_to_string(reg));
 
+        self._rl(reg);
+    }
+
+    fn _rlc(&mut self, reg: u8) {
         let orig = self.read_r8(reg);
-        let res = orig.rotate_left(1) | (if self.f_c() { 1 } else { 0 });
+        let res = orig.rotate_left(1);
         self.write_r8(reg, res);
 
         self.set_f_z(res == 0);
@@ -288,20 +315,10 @@ impl CPU {
     fn rlc(&mut self, reg: u8) {
         debug!("RLC {}", Self::reg_to_string(reg));
 
-        let orig = self.read_r8(reg);
-        let res = orig.rotate_left(1);
-        self.write_r8(reg, res);
-
-        self.set_f_z(res == 0);
-        self.set_f_n(false);
-        self.set_f_h(false);
-        self.set_f_c(orig >> 7 & 1 == 1);
+        self._rlc(reg);
     }
 
-    /// Rotate right through carry
-    fn rr(&mut self, reg: u8) {
-        debug!("RR {}", Self::reg_to_string(reg));
-
+    fn _rr(&mut self, reg: u8) {
         let orig = self.read_r8(reg);
         let res = orig.rotate_right(1) | (if self.f_c() { 1 } else { 0 } << 7);
         self.write_r8(reg, res);
@@ -312,10 +329,14 @@ impl CPU {
         self.set_f_c(orig & 1 == 1);
     }
 
-    /// Rotate right
-    fn rrc(&mut self, reg: u8) {
-        debug!("RRC {}", Self::reg_to_string(reg));
+    /// Rotate right through carry
+    fn rr(&mut self, reg: u8) {
+        debug!("RR {}", Self::reg_to_string(reg));
 
+        self._rr(reg);
+    }
+
+    fn _rrc(&mut self, reg: u8) {
         let orig = self.read_r8(reg);
         let res = orig.rotate_right(1);
         self.write_r8(reg, res);
@@ -324,6 +345,14 @@ impl CPU {
         self.set_f_n(false);
         self.set_f_h(false);
         self.set_f_c(orig & 1 == 1);
+    }
+
+
+    /// Rotate right
+    fn rrc(&mut self, reg: u8) {
+        debug!("RRC {}", Self::reg_to_string(reg));
+
+        self._rrc(reg);
     }
 
     fn jr_nz_d8(&mut self) {
@@ -456,6 +485,16 @@ impl CPU {
         self.pc = (hi as u16) << 8 | lo as u16;
     }
 
+    fn ret(&mut self) {
+        debug!("RET");
+
+        let lo = self.mmu.read(self.sp);
+        let hi = self.mmu.read(self.sp.wrapping_add(1));
+
+        self.pc = (hi as u16) << 8 | lo as u16;
+        self.sp = self.sp.wrapping_sub(2);
+    }
+
     fn push_bc(&mut self) {
         debug!("PUSH BC");
 
@@ -527,29 +566,56 @@ impl CPU {
     fn rlca(&mut self) {
         debug!("RLCA");
 
-        self.rlc(7);
+        self._rlc(7);
         self.set_f_z(false);
     }
 
     fn rla(&mut self) {
         debug!("RLA");
 
-        self.rl(7);
+        self._rl(7);
         self.set_f_z(false);
     }
 
     fn rrca(&mut self) {
         debug!("RLRA");
 
-        self.rrc(7);
+        self._rrc(7);
         self.set_f_z(false);
     }
 
     fn rra(&mut self) {
         debug!("RRA");
 
-        self.rr(7);
+        self._rr(7);
         self.set_f_z(false);
+    }
+
+    fn inc_bc(&mut self) {
+        debug!("INC BC");
+
+        let val = self.bc();
+        self.set_bc(val.wrapping_add(1));
+    }
+
+    fn inc_de(&mut self) {
+        debug!("INC DE");
+
+        let val = self.de();
+        self.set_de(val.wrapping_add(1));
+    }
+
+    fn inc_hl(&mut self) {
+        debug!("INC HL");
+
+        let val = self.hl();
+        self.set_hl(val.wrapping_add(1));
+    }
+
+    fn inc_sp(&mut self) {
+        debug!("INC SP");
+
+        self.sp = self.sp.wrapping_add(1);
     }
 
     /// Prefixed instructions
@@ -642,8 +708,17 @@ impl CPU {
             // LD r8, r8
             0x40...0x75 | 0x77...0x7f => self.ld_r8_r8(reg2, reg),
 
+            // INC r16
+            0x03 => self.inc_bc(),
+            0x13 => self.inc_de(),
+            0x23 => self.inc_hl(),
+            0x33 => self.inc_sp(),
+
             // CALL d16
             0xcd => self.call(),
+
+            // RET
+            0xc9 => self.ret(),
 
             // CB prefixed
             0xcb => self.prefix(),
@@ -652,13 +727,12 @@ impl CPU {
     }
 
     pub fn dump(&self) {
-        println!("A: {:02x} B: {:02x} C: {:02x}", self.a, self.b, self.c);
-        // println!("CPU State:");
-        // println!("PC: 0x{:04x}", self.pc);
-        // println!("SP: 0x{:04x}", self.sp);
-        // println!("AF: 0x{:04x}", self.af());
-        // println!("BC: 0x{:04x}", self.bc());
-        // println!("DE: 0x{:04x}", self.de());
-        // println!("HL: 0x{:04x}", self.hl());
+        println!("CPU State:");
+        println!("PC: 0x{:04x}", self.pc);
+        println!("SP: 0x{:04x}", self.sp);
+        println!("AF: 0x{:04x}", self.af());
+        println!("BC: 0x{:04x}", self.bc());
+        println!("DE: 0x{:04x}", self.de());
+        println!("HL: 0x{:04x}", self.hl());
     }
 }
