@@ -210,6 +210,35 @@ impl CPU {
         self.a ^= self.read_r8(reg);
     }
 
+    /// 8-bit CP
+    fn cp_r8(&mut self, reg: u8) {
+        debug!("CP {}", Self::reg_to_string(reg));
+
+        let a = self.a;
+        let val = self.read_r8(reg);
+
+        self.set_f_z(a == val);
+        self.set_f_n(true);
+        // self.set_f_h(??);
+        self.set_f_c(a < val);
+    }
+
+    /// 8-bit CP
+    fn cp_d8(&mut self) {
+        let imm = self.read_d8();
+
+        debug!("CP 0x{:02x}", imm);
+
+        let a = self.a;
+
+        println!("A={:02x} imm={:02x}", a, imm);
+
+        self.set_f_z(a == imm);
+        self.set_f_n(true);
+        // self.set_f_h(??);
+        self.set_f_c(a < imm);
+    }
+
     fn ldi_hl_a(&mut self) {
         debug!("LD (HL+), A");
 
@@ -395,6 +424,14 @@ impl CPU {
         }
     }
 
+    fn jr_d8(&mut self) {
+        let offset = self.read_d8() as i8;
+
+        debug!("JR {}", offset);
+
+        self.pc = self.pc.wrapping_add(offset as u16);
+    }
+
     fn ld_io_d8_a(&mut self) {
         let offset = self.read_d8() as u16;
         let addr = 0xff00 | offset;
@@ -480,8 +517,7 @@ impl CPU {
 
         self.sp = self.sp.wrapping_sub(2);
         self.mmu.write(self.sp, (self.pc & 0xff) as u8);
-        self.mmu
-            .write(self.sp.wrapping_add(1), (self.pc >> 8 & 0xff) as u8);
+        self.mmu.write(self.sp.wrapping_add(1), (self.pc >> 8 & 0xff) as u8);
         self.pc = (hi as u16) << 8 | lo as u16;
     }
 
@@ -492,7 +528,7 @@ impl CPU {
         let hi = self.mmu.read(self.sp.wrapping_add(1));
 
         self.pc = (hi as u16) << 8 | lo as u16;
-        self.sp = self.sp.wrapping_sub(2);
+        self.sp = self.sp.wrapping_add(2);
     }
 
     fn push_bc(&mut self) {
@@ -618,6 +654,16 @@ impl CPU {
         self.sp = self.sp.wrapping_add(1);
     }
 
+    fn ld_ind_d16_a(&mut self) {
+        let lo = self.read_d8();
+        let hi = self.read_d8();
+        let addr = (hi as u16) << 8 | lo as u16;
+
+        debug!("LD (0x{:04x}), A", addr);
+
+        self.mmu.write(addr, self.a);
+    }
+
     /// Prefixed instructions
     fn prefix(&mut self) {
         let opcode = self.read_d8();
@@ -670,6 +716,9 @@ impl CPU {
             0x28 => self.jr_z_d8(),
             0x38 => self.jr_c_d8(),
 
+            // Unconditional jump
+            0x18 => self.jr_d8(),
+
             0x07 => self.rlca(),
             0x17 => self.rla(),
             0x0f => self.rrca(),
@@ -683,6 +732,12 @@ impl CPU {
 
             // XOR r8
             0xa8...0xaf => self.xor_r8(reg),
+
+            // CP r8
+            0xb8...0xbf => self.cp_r8(reg),
+
+            // CP d8
+            0xfe => self.cp_d8(),
 
             // LDI, LDD
             0x22 => self.ldi_hl_a(),
@@ -703,10 +758,13 @@ impl CPU {
             0x04|0x0c|0x14|0x1c|0x24|0x2c|0x34|0x3c => self.inc_r8(reg2),
 
             // DEC r8
-            0x05|0x0b|0x15|0x1b|0x25|0x2b|0x35|0x3b => self.dec_r8(reg2),
+            0x05|0x0d|0x15|0x1d|0x25|0x2d|0x35|0x3d => self.dec_r8(reg2),
 
             // LD r8, r8
             0x40...0x75 | 0x77...0x7f => self.ld_r8_r8(reg2, reg),
+
+            // LD (d16), A
+            0xea => self.ld_ind_d16_a(),
 
             // INC r16
             0x03 => self.inc_bc(),
