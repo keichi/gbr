@@ -13,6 +13,7 @@ fn main() {
 
     loop {
         cpu.step();
+        cpu.dump();
     }
     cpu.dump();
 }

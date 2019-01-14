@@ -66,6 +66,38 @@ impl CPU {
         self.l = (val & 0xff) as u8;
     }
 
+    fn set_f_z(&mut self, z: bool) {
+        self.f = (self.f & !(1 << 7)) | (u8::from(z) << 7);
+    }
+
+    fn f_z(&self) -> bool {
+        (self.f >> 7) & 1 == 1
+    }
+
+    fn set_f_h(&mut self, h: bool) {
+        self.f = (self.f & !(1 << 6)) | (u8::from(h) << 6);
+    }
+
+    fn f_h(&self) -> bool {
+        (self.f >> 6) & 1 == 1
+    }
+
+    fn set_f_n(&mut self, n: bool) {
+        self.f = (self.f & !(1 << 5)) | (u8::from(n) << 5);
+    }
+
+    fn f_n(&self) -> bool {
+        (self.f >> 5) & 1 == 1
+    }
+
+    fn set_f_c(&mut self, c: bool) {
+        self.f = (self.f & !(1 << 4)) | (u8::from(c) << 4);
+    }
+
+    fn f_c(&self) -> bool {
+        (self.f >> 4) & 1 == 1
+    }
+
     fn reg_to_string(idx: u8) -> String {
         match idx {
             0 => String::from("B"),
@@ -202,12 +234,96 @@ impl CPU {
         self.set_hl(hl.wrapping_sub(1));
     }
 
+    fn ld_ind_bc_a(&mut self) {
+        debug!("LD (BC), A");
+
+        let addr = self.bc();
+        self.mmu.write(addr, self.a);
+    }
+
+    fn ld_ind_de_a(&mut self) {
+        debug!("LD (DE), A");
+
+        let addr = self.de();
+        self.mmu.write(addr, self.a);
+    }
+
+    fn ld_a_ind_bc(&mut self) {
+        debug!("LD A, (BC)");
+
+        self.a = self.mmu.read(self.bc());
+    }
+
+    fn ld_a_ind_de(&mut self) {
+        debug!("LD A, (DE)");
+
+        self.a = self.mmu.read(self.de());
+    }
+
     /// Test bit
     fn bit(&mut self, pos: u8, reg: u8) {
         debug!("BIT {}, {}", pos, Self::reg_to_string(reg));
 
-        let z = self.read_r8(reg) >> pos & 1;
-        self.f = (self.f & 0b00011111) | (z << pos) | 0b00100000;
+        let z = (self.read_r8(reg) >> pos & 1) == 0;
+        self.set_f_z(z);
+        self.set_f_n(false);
+        self.set_f_h(true);
+    }
+
+    /// Rotate left through carry
+    fn rl(&mut self, reg: u8) {
+        debug!("RL {}", Self::reg_to_string(reg));
+
+        let orig = self.read_r8(reg);
+        let res = orig.rotate_left(1) | (if self.f_c() { 1 } else { 0 });
+        self.write_r8(reg, res);
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(false);
+        self.set_f_c(orig >> 7 & 1 == 1);
+    }
+
+    /// Rotate left
+    fn rlc(&mut self, reg: u8) {
+        debug!("RLC {}", Self::reg_to_string(reg));
+
+        let orig = self.read_r8(reg);
+        let res = orig.rotate_left(1);
+        self.write_r8(reg, res);
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(false);
+        self.set_f_c(orig >> 7 & 1 == 1);
+    }
+
+    /// Rotate right through carry
+    fn rr(&mut self, reg: u8) {
+        debug!("RR {}", Self::reg_to_string(reg));
+
+        let orig = self.read_r8(reg);
+        let res = orig.rotate_right(1) | (if self.f_c() { 1 } else { 0 } << 7);
+        self.write_r8(reg, res);
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(false);
+        self.set_f_c(orig & 1 == 1);
+    }
+
+    /// Rotate right
+    fn rrc(&mut self, reg: u8) {
+        debug!("RRC {}", Self::reg_to_string(reg));
+
+        let orig = self.read_r8(reg);
+        let res = orig.rotate_right(1);
+        self.write_r8(reg, res);
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(false);
+        self.set_f_c(orig & 1 == 1);
     }
 
     fn jr_nz_d8(&mut self) {
@@ -215,7 +331,7 @@ impl CPU {
 
         debug!("JR NZ, {}", offset);
 
-        if self.f & 0b10000000 != 0 {
+        if !self.f_z() {
             self.pc = self.pc.wrapping_add(offset as u16);
         }
     }
@@ -225,7 +341,7 @@ impl CPU {
 
         debug!("JR NC, {}", offset);
 
-        if self.f & 0b00010000 != 0 {
+        if !self.f_c() {
             self.pc = self.pc.wrapping_add(offset as u16);
         }
     }
@@ -235,7 +351,7 @@ impl CPU {
 
         debug!("JR Z, {}", offset);
 
-        if self.f & 0b10000000 == 0 {
+        if self.f_z() {
             self.pc = self.pc.wrapping_add(offset as u16);
         }
     }
@@ -245,23 +361,25 @@ impl CPU {
 
         debug!("JR C, {}", offset);
 
-        if self.f & 0b00010000 == 0 {
+        if self.f_c() {
             self.pc = self.pc.wrapping_add(offset as u16);
         }
     }
 
     fn ld_io_d8_a(&mut self) {
-        let addr = 0xff00 | self.read_d8() as u16;
+        let offset = self.read_d8() as u16;
+        let addr = 0xff00 | offset;
 
-        debug!("LD 0x{:04x}, A", addr);
+        debug!("LD (0xff00+0x{:02x}), A", offset);
 
         self.mmu.write(addr, self.a);
     }
 
     fn ld_a_io_d8(&mut self) {
-        let addr = 0xff00 | self.read_d8() as u16;
+        let offset = self.read_d8() as u16;
+        let addr = 0xff00 | offset;
 
-        debug!("LD A, 0x{:04x}", addr);
+        debug!("LD A, (0xff00+0x{:02x})", offset);
 
         self.a = self.mmu.read(addr);
     }
@@ -293,15 +411,145 @@ impl CPU {
     fn inc_r8(&mut self, reg: u8) {
         debug!("INC {}", Self::reg_to_string(reg));
 
-        let val = self.read_r8(reg);
-        self.write_r8(reg, val.wrapping_add(1));
+        let orig = self.read_r8(reg);
+        let res = orig.wrapping_add(1);
+        self.write_r8(reg, res);
+
+        self.set_f_z(res == 0);
+        self.set_f_h(orig & 0x0f == 0x0f);
+        self.set_f_n(false);
     }
 
     fn dec_r8(&mut self, reg: u8) {
         debug!("DEC {}", Self::reg_to_string(reg));
 
-        let val = self.read_r8(reg);
-        self.write_r8(reg, val.wrapping_sub(1));
+        let orig = self.read_r8(reg);
+        let res = orig.wrapping_sub(1);
+        self.write_r8(reg, res);
+
+        self.set_f_z(res == 0);
+        self.set_f_h(orig & 0x0f == 0x00);
+        self.set_f_n(true);
+    }
+
+    fn ld_r8_r8(&mut self, reg1: u8, reg2: u8) {
+        debug!(
+            "LD {}, {}",
+            Self::reg_to_string(reg1),
+            Self::reg_to_string(reg2)
+        );
+
+        let val = self.read_r8(reg2);
+        self.write_r8(reg1, val);
+    }
+
+    fn call(&mut self) {
+        let lo = self.read_d8();
+        let hi = self.read_d8();
+
+        debug!("CALL 0x{:02x}{:02x}", hi, lo);
+
+        self.sp = self.sp.wrapping_sub(2);
+        self.mmu.write(self.sp, (self.pc & 0xff) as u8);
+        self.mmu
+            .write(self.sp.wrapping_add(1), (self.pc >> 8 & 0xff) as u8);
+        self.pc = (hi as u16) << 8 | lo as u16;
+    }
+
+    fn push_bc(&mut self) {
+        debug!("PUSH BC");
+
+        self.sp = self.sp.wrapping_sub(2);
+        self.mmu.write(self.sp, self.c);
+        self.mmu.write(self.sp.wrapping_add(1), self.b);
+    }
+
+    fn push_de(&mut self) {
+        debug!("PUSH DE");
+
+        self.sp = self.sp.wrapping_sub(2);
+        self.mmu.write(self.sp, self.e);
+        self.mmu.write(self.sp.wrapping_add(1), self.d);
+    }
+
+    fn push_hl(&mut self) {
+        debug!("PUSH HL");
+
+        self.sp = self.sp.wrapping_sub(2);
+        self.mmu.write(self.sp, self.l);
+        self.mmu.write(self.sp.wrapping_add(1), self.h);
+    }
+
+    fn push_af(&mut self) {
+        debug!("PUSH AF");
+
+        self.sp = self.sp.wrapping_sub(2);
+        self.mmu.write(self.sp, self.f);
+        self.mmu.write(self.sp.wrapping_add(1), self.a);
+    }
+
+    fn pop_bc(&mut self) {
+        debug!("POP BC");
+
+        self.c = self.mmu.read(self.sp);
+        self.b = self.mmu.read(self.sp.wrapping_add(1));
+
+        self.sp = self.sp.wrapping_add(2);
+    }
+
+    fn pop_de(&mut self) {
+        debug!("POP DE");
+
+        self.e = self.mmu.read(self.sp);
+        self.d = self.mmu.read(self.sp.wrapping_add(1));
+
+        self.sp = self.sp.wrapping_add(2);
+    }
+
+    fn pop_hl(&mut self) {
+        debug!("POP HL");
+
+        self.l = self.mmu.read(self.sp);
+        self.h = self.mmu.read(self.sp.wrapping_add(1));
+
+        self.sp = self.sp.wrapping_add(2);
+    }
+
+    fn pop_af(&mut self) {
+        debug!("POP AF");
+
+        self.f = self.mmu.read(self.sp);
+        self.a = self.mmu.read(self.sp.wrapping_add(1));
+
+        self.sp = self.sp.wrapping_add(2);
+    }
+
+    fn rlca(&mut self) {
+        debug!("RLCA");
+
+        self.rlc(7);
+        self.set_f_z(false);
+    }
+
+    fn rla(&mut self) {
+        debug!("RLA");
+
+        self.rl(7);
+        self.set_f_z(false);
+    }
+
+    fn rrca(&mut self) {
+        debug!("RLRA");
+
+        self.rrc(7);
+        self.set_f_z(false);
+    }
+
+    fn rra(&mut self) {
+        debug!("RRA");
+
+        self.rr(7);
+        self.set_f_z(false);
     }
 
     /// Prefixed instructions
@@ -311,6 +559,10 @@ impl CPU {
         let reg = opcode & 0x7;
 
         match opcode {
+            0x00...0x07 => self.rlc(reg),
+            0x08...0x0f => self.rrc(reg),
+            0x10...0x17 => self.rl(reg),
+            0x18...0x1f => self.rr(reg),
             0x40...0x7f => self.bit(pos, reg),
             _ => println!("Unimplemented opcode 0xcb 0x{:x}", opcode),
         }
@@ -318,13 +570,33 @@ impl CPU {
 
     pub fn step(&mut self) {
         let opcode = self.read_d8();
+        let reg = opcode & 7;
+        let reg2 = opcode >> 3 & 7;
 
         match opcode {
-            // LD reg, imm
+            // LD r16, d16
             0x01 => self.ld_r16_d16(Reg16::BC),
             0x11 => self.ld_r16_d16(Reg16::DE),
             0x21 => self.ld_r16_d16(Reg16::HL),
             0x31 => self.ld_r16_d16(Reg16::SP),
+
+            // LD A, [r16]
+            0x02 => self.ld_ind_bc_a(),
+            0x12 => self.ld_ind_de_a(),
+            0x0a => self.ld_a_ind_bc(),
+            0x1a => self.ld_a_ind_de(),
+
+            // PUSH r16
+            0xc5 => self.push_bc(),
+            0xd5 => self.push_de(),
+            0xe5 => self.push_hl(),
+            0xf5 => self.push_af(),
+
+            // POP r16
+            0xc1 => self.pop_bc(),
+            0xd1 => self.pop_de(),
+            0xe1 => self.pop_hl(),
+            0xf1 => self.pop_af(),
 
             // Conditional jump
             0x20 => self.jr_nz_d8(),
@@ -332,14 +604,19 @@ impl CPU {
             0x28 => self.jr_z_d8(),
             0x38 => self.jr_c_d8(),
 
-            // AND reg
-            0xa0...0xa7 => self.and_r8(opcode & 7),
+            0x07 => self.rlca(),
+            0x17 => self.rla(),
+            0x0f => self.rrca(),
+            0x1f => self.rra(),
 
-            // OR reg
-            0xb0...0xb7 => self.or_r8(opcode & 7),
+            // AND r8
+            0xa0...0xa7 => self.and_r8(reg),
 
-            // XOR reg
-            0xa8...0xaf => self.xor_r8(opcode & 7),
+            // OR r8
+            0xb0...0xb7 => self.or_r8(reg),
+
+            // XOR r8
+            0xa8...0xaf => self.xor_r8(reg),
 
             // LDI, LDD
             0x22 => self.ldi_hl_a(),
@@ -353,27 +630,35 @@ impl CPU {
             0xe2 => self.ld_io_c_a(),
             0xf2 => self.ld_a_io_c(),
 
-            // LD imm
-            0x06 | 0x0e | 0x16 | 0x1e | 0x26 | 0x2e | 0x36 | 0x3e => self.ld_r8_d8(opcode >> 3 & 7),
+            // LD r8, d8
+            0x06|0x0e|0x16|0x1e|0x26|0x2e|0x36|0x3e => self.ld_r8_d8(reg2),
 
-            // INC imm
-            0x04 | 0x0c | 0x14 | 0x1c | 0x24 | 0x2c | 0x34 | 0x3c => self.inc_r8(opcode >> 3 & 7),
+            // INC r8
+            0x04|0x0c|0x14|0x1c|0x24|0x2c|0x34|0x3c => self.inc_r8(reg2),
 
-            // DEC imm
-            0x05 | 0x0b | 0x15 | 0x1b | 0x25 | 0x2b | 0x35 | 0x3b => self.dec_r8(opcode >> 3 & 7),
+            // DEC r8
+            0x05|0x0b|0x15|0x1b|0x25|0x2b|0x35|0x3b => self.dec_r8(reg2),
 
+            // LD r8, r8
+            0x40...0x75 | 0x77...0x7f => self.ld_r8_r8(reg2, reg),
+
+            // CALL d16
+            0xcd => self.call(),
+
+            // CB prefixed
             0xcb => self.prefix(),
             _ => panic!("Unimplemented opcode 0x{:x}", opcode),
         }
     }
 
     pub fn dump(&self) {
-        println!("CPU State:");
-        println!("PC: 0x{:04x}", self.pc);
-        println!("SP: 0x{:04x}", self.sp);
-        println!("AF: 0x{:04x}", self.af());
-        println!("BC: 0x{:04x}", self.bc());
-        println!("DE: 0x{:04x}", self.de());
-        println!("HL: 0x{:04x}", self.hl());
+        println!("A: {:02x} B: {:02x} C: {:02x}", self.a, self.b, self.c);
+        // println!("CPU State:");
+        // println!("PC: 0x{:04x}", self.pc);
+        // println!("SP: 0x{:04x}", self.sp);
+        // println!("AF: 0x{:04x}", self.af());
+        // println!("BC: 0x{:04x}", self.bc());
+        // println!("DE: 0x{:04x}", self.de());
+        // println!("HL: 0x{:04x}", self.hl());
     }
 }
