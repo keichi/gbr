@@ -4,6 +4,7 @@ use std::io::Read;
 #[derive(Debug)]
 pub struct MMU {
     boot_rom: Vec<u8>,
+    ram: Vec<u8>,
     hram: Vec<u8>
 }
 
@@ -11,6 +12,7 @@ impl MMU {
     pub fn new() -> Self {
         let mut mmu = MMU {
             boot_rom: Vec::new(),
+            ram: vec![0; 0x2000],
             hram: vec![0; 0x7f]
         };
 
@@ -26,6 +28,8 @@ impl MMU {
         debug!("MEM write [0x{:04x}] = 0x{:02x}", addr, val);
 
         match addr {
+            // RAM
+            0xc000...0xdfff => self.ram[(addr - 0xc000) as usize] = val,
             // HRAM
             0xff80...0xfffe => self.hram[(addr - 0xff80) as usize] = val,
             _ => (),
@@ -36,6 +40,8 @@ impl MMU {
         match addr {
             // Boot ROM
             0x0000...0x00ff => self.boot_rom[addr as usize],
+            // RAM
+            0xc000...0xdfff => self.ram[(addr - 0xc000) as usize],
             // HRAM
             0xff80...0xfffe => self.hram[(addr - 0xff80) as usize],
             _ => 0xff,
