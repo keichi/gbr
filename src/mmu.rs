@@ -5,7 +5,7 @@ use std::io::Read;
 pub struct MMU {
     boot_rom: Vec<u8>,
     ram: Vec<u8>,
-    hram: Vec<u8>
+    hram: Vec<u8>,
 }
 
 impl MMU {
@@ -13,7 +13,7 @@ impl MMU {
         let mut mmu = MMU {
             boot_rom: Vec::new(),
             ram: vec![0; 0x2000],
-            hram: vec![0; 0x7f]
+            hram: vec![0; 0x7f],
         };
 
         let mut file = File::open("dmg_boot.bin").unwrap();
@@ -29,9 +29,9 @@ impl MMU {
 
         match addr {
             // RAM
-            0xc000...0xdfff => self.ram[(addr - 0xc000) as usize] = val,
+            0xc000...0xdfff => self.ram[(addr & 0x1fff) as usize] = val,
             // HRAM
-            0xff80...0xfffe => self.hram[(addr - 0xff80) as usize] = val,
+            0xff80...0xfffe => self.hram[(addr & 0x7f) as usize] = val,
             _ => (),
         }
     }
@@ -41,10 +41,22 @@ impl MMU {
             // Boot ROM
             0x0000...0x00ff => self.boot_rom[addr as usize],
             // RAM
-            0xc000...0xdfff => self.ram[(addr - 0xc000) as usize],
+            0xc000...0xdfff => self.ram[(addr & 0x1fff) as usize],
             // HRAM
-            0xff80...0xfffe => self.hram[(addr - 0xff80) as usize],
+            0xff80...0xfffe => self.hram[(addr & 0x7f) as usize],
             _ => 0xff,
         }
+    }
+
+    pub fn write16(&mut self, addr: u16, val: u16) {
+        self.write(addr, (val & 0xff) as u8);
+        self.write(addr.wrapping_add(1), (val >> 8 & 0xff) as u8);
+    }
+
+    pub fn read16(&self, addr: u16) -> u16 {
+        let lo = self.read(addr);
+        let hi = self.read(addr.wrapping_add(1));
+
+        (hi as u16) << 8 | lo as u16
     }
 }

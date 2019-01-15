@@ -135,7 +135,7 @@ impl CPU {
             5 => self.l = val,
             6 => {
                 let hl = self.hl();
-                self.mmu.write(hl, val)
+                self.mmu.write(hl, val);
             }
             7 => self.a = val,
             _ => panic!("Invalid operand index: {}", idx),
@@ -165,7 +165,15 @@ impl CPU {
         imm
     }
 
-    /// 16-bit load
+    /// Read 16-bit immediate from memory
+    fn read_d16(&mut self) -> u16 {
+        let imm = self.mmu.read16(self.pc);
+        self.pc = self.pc.wrapping_add(2);
+
+        imm
+    }
+
+    /// LD r16, d16
     fn ld_r16_d16(&mut self, reg: Reg16) {
         let lo = self.read_d8();
         let hi = self.read_d8();
@@ -189,28 +197,28 @@ impl CPU {
         }
     }
 
-    /// 8-bit AND
+    /// AND r8
     fn and_r8(&mut self, reg: u8) {
         debug!("AND {}", Self::reg_to_string(reg));
 
         self.a &= self.read_r8(reg);
     }
 
-    /// 8-bit OR
+    /// OR r8
     fn or_r8(&mut self, reg: u8) {
         debug!("OR {}", Self::reg_to_string(reg));
 
         self.a |= self.read_r8(reg);
     }
 
-    /// 8-bit XOR
+    /// XOR r8
     fn xor_r8(&mut self, reg: u8) {
         debug!("XOR {}", Self::reg_to_string(reg));
 
         self.a ^= self.read_r8(reg);
     }
 
-    /// 8-bit CP
+    /// CP r8
     fn cp_r8(&mut self, reg: u8) {
         debug!("CP {}", Self::reg_to_string(reg));
 
@@ -223,7 +231,7 @@ impl CPU {
         self.set_f_c(a < val);
     }
 
-    /// 8-bit CP
+    /// CP d8
     fn cp_d8(&mut self) {
         let imm = self.read_d8();
 
@@ -390,7 +398,6 @@ impl CPU {
         self.set_f_c(orig & 1 == 1);
     }
 
-
     /// Rotate right
     fn rrc(&mut self, reg: u8) {
         debug!("RRC {}", Self::reg_to_string(reg));
@@ -398,6 +405,7 @@ impl CPU {
         self._rrc(reg);
     }
 
+    /// Jump to pc+d8 if not Z
     fn jr_nz_d8(&mut self) {
         let offset = self.read_d8() as i8;
 
@@ -408,6 +416,7 @@ impl CPU {
         }
     }
 
+    /// Jump to pc+d8 if not C
     fn jr_nc_d8(&mut self) {
         let offset = self.read_d8() as i8;
 
@@ -418,6 +427,7 @@ impl CPU {
         }
     }
 
+    /// Jump to pc+d8 if Z
     fn jr_z_d8(&mut self) {
         let offset = self.read_d8() as i8;
 
@@ -428,6 +438,7 @@ impl CPU {
         }
     }
 
+    /// Jump to pc+d8 if C
     fn jr_c_d8(&mut self) {
         let offset = self.read_d8() as i8;
 
@@ -438,6 +449,7 @@ impl CPU {
         }
     }
 
+    /// Jump to pc+d8
     fn jr_d8(&mut self) {
         let offset = self.read_d8() as i8;
 
@@ -480,6 +492,7 @@ impl CPU {
         self.a = self.mmu.read(addr);
     }
 
+    /// LD r8, d8
     fn ld_r8_d8(&mut self, reg: u8) {
         let imm = self.read_d8();
 
@@ -488,6 +501,7 @@ impl CPU {
         self.write_r8(reg, imm);
     }
 
+    /// INC r8
     fn inc_r8(&mut self, reg: u8) {
         debug!("INC {}", Self::reg_to_string(reg));
 
@@ -500,6 +514,7 @@ impl CPU {
         self.set_f_n(false);
     }
 
+    /// DEC r8
     fn dec_r8(&mut self, reg: u8) {
         debug!("DEC {}", Self::reg_to_string(reg));
 
@@ -512,6 +527,7 @@ impl CPU {
         self.set_f_n(true);
     }
 
+    /// LD r8, r8
     fn ld_r8_r8(&mut self, reg1: u8, reg2: u8) {
         debug!(
             "LD {}, {}",
@@ -523,6 +539,7 @@ impl CPU {
         self.write_r8(reg1, val);
     }
 
+    /// CALL d16
     fn call(&mut self) {
         let lo = self.read_d8();
         let hi = self.read_d8();
@@ -530,21 +547,19 @@ impl CPU {
         debug!("CALL 0x{:02x}{:02x}", hi, lo);
 
         self.sp = self.sp.wrapping_sub(2);
-        self.mmu.write(self.sp, (self.pc & 0xff) as u8);
-        self.mmu.write(self.sp.wrapping_add(1), (self.pc >> 8 & 0xff) as u8);
+        self.mmu.write16(self.sp, self.pc);
         self.pc = (hi as u16) << 8 | lo as u16;
     }
 
+    /// RET
     fn ret(&mut self) {
         debug!("RET");
 
-        let lo = self.mmu.read(self.sp);
-        let hi = self.mmu.read(self.sp.wrapping_add(1));
-
-        self.pc = (hi as u16) << 8 | lo as u16;
+        self.pc = self.mmu.read16(self.sp);
         self.sp = self.sp.wrapping_add(2);
     }
 
+    /// PUSH BC
     fn push_bc(&mut self) {
         debug!("PUSH BC");
 
@@ -553,6 +568,7 @@ impl CPU {
         self.mmu.write(self.sp.wrapping_add(1), self.b);
     }
 
+    /// PUSH DE
     fn push_de(&mut self) {
         debug!("PUSH DE");
 
@@ -561,6 +577,7 @@ impl CPU {
         self.mmu.write(self.sp.wrapping_add(1), self.d);
     }
 
+    /// PUSH HL
     fn push_hl(&mut self) {
         debug!("PUSH HL");
 
@@ -569,6 +586,7 @@ impl CPU {
         self.mmu.write(self.sp.wrapping_add(1), self.h);
     }
 
+    /// PUSH AF
     fn push_af(&mut self) {
         debug!("PUSH AF");
 
@@ -577,6 +595,7 @@ impl CPU {
         self.mmu.write(self.sp.wrapping_add(1), self.a);
     }
 
+    /// POP BC
     fn pop_bc(&mut self) {
         debug!("POP BC");
 
@@ -586,6 +605,7 @@ impl CPU {
         self.sp = self.sp.wrapping_add(2);
     }
 
+    /// POP DE
     fn pop_de(&mut self) {
         debug!("POP DE");
 
@@ -595,6 +615,7 @@ impl CPU {
         self.sp = self.sp.wrapping_add(2);
     }
 
+    /// POP HL
     fn pop_hl(&mut self) {
         debug!("POP HL");
 
@@ -604,6 +625,7 @@ impl CPU {
         self.sp = self.sp.wrapping_add(2);
     }
 
+    /// POP AF
     fn pop_af(&mut self) {
         debug!("POP AF");
 
@@ -669,9 +691,7 @@ impl CPU {
     }
 
     fn ld_ind_d16_a(&mut self) {
-        let lo = self.read_d8();
-        let hi = self.read_d8();
-        let addr = (hi as u16) << 8 | lo as u16;
+        let addr = self.read_d16();
 
         debug!("LD (0x{:04x}), A", addr);
 
@@ -768,13 +788,13 @@ impl CPU {
             0xf2 => self.ld_a_io_c(),
 
             // LD r8, d8
-            0x06|0x0e|0x16|0x1e|0x26|0x2e|0x36|0x3e => self.ld_r8_d8(reg2),
+            0x06 | 0x0e | 0x16 | 0x1e | 0x26 | 0x2e | 0x36 | 0x3e => self.ld_r8_d8(reg2),
 
             // INC r8
-            0x04|0x0c|0x14|0x1c|0x24|0x2c|0x34|0x3c => self.inc_r8(reg2),
+            0x04 | 0x0c | 0x14 | 0x1c | 0x24 | 0x2c | 0x34 | 0x3c => self.inc_r8(reg2),
 
             // DEC r8
-            0x05|0x0d|0x15|0x1d|0x25|0x2d|0x35|0x3d => self.dec_r8(reg2),
+            0x05 | 0x0d | 0x15 | 0x1d | 0x25 | 0x2d | 0x35 | 0x3d => self.dec_r8(reg2),
 
             // LD r8, r8
             0x40...0x75 | 0x77...0x7f => self.ld_r8_r8(reg2, reg),
