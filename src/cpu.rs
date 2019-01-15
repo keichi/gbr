@@ -506,7 +506,7 @@ impl CPU {
 
     fn _rl(&mut self, reg: u8) {
         let orig = self.read_r8(reg);
-        let res = orig.rotate_left(1) | (if self.f_c() { 1 } else { 0 });
+        let res = (orig << 1) | (if self.f_c() { 1 } else { 0 });
         self.write_r8(reg, res);
 
         self.set_f_z(res == 0);
@@ -542,7 +542,7 @@ impl CPU {
 
     fn _rr(&mut self, reg: u8) {
         let orig = self.read_r8(reg);
-        let res = orig.rotate_right(1) | (if self.f_c() { 1 } else { 0 } << 7);
+        let res = (orig >> 1) | (if self.f_c() { 1 } else { 0 } << 7);
         self.write_r8(reg, res);
 
         self.set_f_z(res == 0);
