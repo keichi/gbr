@@ -576,6 +576,34 @@ impl CPU {
         self._rrc(reg);
     }
 
+    /// Swap low/hi-nibble
+    fn swap(&mut self, reg: u8) {
+        debug!("SWAP {}", Self::reg_to_string(reg));
+
+        let orig = self.read_r8(reg);
+        let res = ((orig & 0x0f) << 4) | ((orig & 0xf0) >> 4);
+        self.write_r8(reg, res);
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(false);
+        self.set_f_c(false);
+    }
+
+    /// Shift right through carry
+    fn srl(&mut self, reg: u8) {
+        debug!("SRL {}", Self::reg_to_string(reg));
+
+        let orig = self.read_r8(reg);
+        let res = orig >> 1;
+        self.write_r8(reg, res);
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(false);
+        self.set_f_c(orig & 1 == 1);
+    }
+
     /// Unconditional jump to d16
     fn jp_d16(&mut self) {
         let address = self.read_d16();
@@ -1001,6 +1029,8 @@ impl CPU {
             0x08...0x0f => self.rrc(reg),
             0x10...0x17 => self.rl(reg),
             0x18...0x1f => self.rr(reg),
+            0x30...0x37 => self.swap(reg),
+            0x38...0x3f => self.srl(reg),
             0x40...0x7f => self.bit(pos, reg),
             0x80...0xbf => self.res(pos, reg),
             0xc0...0xff => self.set(pos, reg),
