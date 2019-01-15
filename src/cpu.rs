@@ -495,7 +495,7 @@ impl CPU {
         debug!("JR NZ, {}", offset);
 
         if !self.f_z() {
-            self.pc = self.pc.wrapping_add(offset as u16);
+            self._jr(offset);
         }
     }
 
@@ -506,7 +506,7 @@ impl CPU {
         debug!("JR NC, {}", offset);
 
         if !self.f_c() {
-            self.pc = self.pc.wrapping_add(offset as u16);
+            self._jr(offset);
         }
     }
 
@@ -517,7 +517,7 @@ impl CPU {
         debug!("JR Z, {}", offset);
 
         if self.f_z() {
-            self.pc = self.pc.wrapping_add(offset as u16);
+            self._jr(offset);
         }
     }
 
@@ -528,8 +528,12 @@ impl CPU {
         debug!("JR C, {}", offset);
 
         if self.f_c() {
-            self.pc = self.pc.wrapping_add(offset as u16);
+            self._jr(offset);
         }
+    }
+
+    fn _jr(&mut self, offset: i8) {
+        self.pc = self.pc.wrapping_add(offset as u16);
     }
 
     /// Jump to pc+d8
@@ -538,7 +542,7 @@ impl CPU {
 
         debug!("JR {}", offset);
 
-        self.pc = self.pc.wrapping_add(offset as u16);
+        self._jr(offset);
     }
 
     fn ld_io_d8_a(&mut self) {
@@ -629,7 +633,7 @@ impl CPU {
     }
 
     /// CALL d16
-    fn call(&mut self) {
+    fn call_d16(&mut self) {
         let addr = self.read_d16();
 
         debug!("CALL 0x{:04x}", addr);
@@ -638,7 +642,7 @@ impl CPU {
     }
 
     /// CALL NZ, d16
-    fn call_nz(&mut self) {
+    fn call_nz_d16(&mut self) {
         let addr = self.read_d16();
 
         debug!("CALL NZ, 0x{:04x}", addr);
@@ -649,7 +653,7 @@ impl CPU {
     }
 
     /// CALL NC, d16
-    fn call_nc(&mut self) {
+    fn call_nc_d16(&mut self) {
         let addr = self.read_d16();
 
         debug!("CALL NC, 0x{:04x}", addr);
@@ -660,7 +664,7 @@ impl CPU {
     }
 
     /// CALL Z, d16
-    fn call_z(&mut self) {
+    fn call_z_d16(&mut self) {
         let addr = self.read_d16();
 
         debug!("CALL Z, 0x{:04x}", addr);
@@ -671,7 +675,7 @@ impl CPU {
     }
 
     /// CALL C, d16
-    fn call_c(&mut self) {
+    fn call_c_d16(&mut self) {
         let addr = self.read_d16();
 
         debug!("CALL C, 0x{:04x}", addr);
@@ -967,13 +971,13 @@ impl CPU {
             0x33 => self.inc_sp(),
 
             // Unconditional call
-            0xcd => self.call(),
+            0xcd => self.call_d16(),
 
             // Conditional call
-            0xc4 => self.call_nz(),
-            0xd4 => self.call_nc(),
-            0xcc => self.call_z(),
-            0xdc => self.call_c(),
+            0xc4 => self.call_nz_d16(),
+            0xd4 => self.call_nc_d16(),
+            0xcc => self.call_z_d16(),
+            0xdc => self.call_c_d16(),
 
             // RET
             0xc9 => self.ret(),
