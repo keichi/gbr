@@ -27,7 +27,7 @@ impl CPU {
     pub fn new(mmu: mmu::MMU) -> Self {
         CPU {
             mmu: mmu,
-            pc: 0,
+            pc: 0x100, // TODO skip boot ROM for now
             sp: 0,
             a: 0,
             f: 0,
@@ -173,6 +173,11 @@ impl CPU {
         imm
     }
 
+    /// NOP
+    fn nop(&mut self) {
+        debug!("NOP");
+    }
+
     /// LD r16, d16
     fn ld_r16_d16(&mut self, reg: Reg16) {
         let lo = self.read_d8();
@@ -201,21 +206,42 @@ impl CPU {
     fn and_r8(&mut self, reg: u8) {
         debug!("AND {}", Self::reg_to_string(reg));
 
-        self.a &= self.read_r8(reg);
+        let res = self.a & self.read_r8(reg);
+
+        self.a = res;
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(true);
+        self.set_f_c(false);
     }
 
     /// OR r8
     fn or_r8(&mut self, reg: u8) {
         debug!("OR {}", Self::reg_to_string(reg));
 
-        self.a |= self.read_r8(reg);
+        let res = self.a | self.read_r8(reg);
+
+        self.a = res;
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(false);
+        self.set_f_c(false);
     }
 
     /// XOR r8
     fn xor_r8(&mut self, reg: u8) {
         debug!("XOR {}", Self::reg_to_string(reg));
 
-        self.a ^= self.read_r8(reg);
+        let res = self.a ^ self.read_r8(reg);
+
+        self.a = res;
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(false);
+        self.set_f_c(false);
     }
 
     /// CP r8
@@ -229,6 +255,54 @@ impl CPU {
         self.set_f_n(true);
         // self.set_f_h(??);
         self.set_f_c(a < val);
+    }
+
+    /// AND d8
+    fn and_d8(&mut self) {
+        let val = self.read_d8();
+
+        debug!("AND 0x{:02x}", val);
+
+        let res = self.a & val;
+
+        self.a = res;
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(true);
+        self.set_f_c(false);
+    }
+
+    /// OR d8
+    fn or_d8(&mut self) {
+        let val = self.read_d8();
+
+        debug!("OR 0x{:02x}", val);
+
+        let res = self.a | val;
+
+        self.a = res;
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(false);
+        self.set_f_c(false);
+    }
+
+    /// XOR d8
+    fn xor_d8(&mut self) {
+        let val = self.read_d8();
+
+        debug!("XOR 0x{:02x}", val);
+
+        let res = self.a ^ val;
+
+        self.a = res;
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(false);
+        self.set_f_c(false);
     }
 
     /// CP d8
@@ -405,6 +479,15 @@ impl CPU {
         self._rrc(reg);
     }
 
+    /// Unconditional jump to d16
+    fn jp_d16(&mut self) {
+        let address = self.read_d16();
+
+        debug!("JP 0x{:04x}", address);
+
+        self.pc = address;
+    }
+
     /// Jump to pc+d8 if not Z
     fn jr_nz_d8(&mut self) {
         let offset = self.read_d8() as i8;
@@ -539,16 +622,63 @@ impl CPU {
         self.write_r8(reg1, val);
     }
 
-    /// CALL d16
-    fn call(&mut self) {
-        let lo = self.read_d8();
-        let hi = self.read_d8();
-
-        debug!("CALL 0x{:02x}{:02x}", hi, lo);
-
+    fn _call(&mut self, addr: u16) {
         self.sp = self.sp.wrapping_sub(2);
         self.mmu.write16(self.sp, self.pc);
-        self.pc = (hi as u16) << 8 | lo as u16;
+        self.pc = addr;
+    }
+
+    /// CALL d16
+    fn call(&mut self) {
+        let addr = self.read_d16();
+
+        debug!("CALL 0x{:04x}", addr);
+
+        self._call(addr);
+    }
+
+    /// CALL NZ, d16
+    fn call_nz(&mut self) {
+        let addr = self.read_d16();
+
+        debug!("CALL NZ, 0x{:04x}", addr);
+
+        if !self.f_z() {
+            self._call(addr);
+        }
+    }
+
+    /// CALL NC, d16
+    fn call_nc(&mut self) {
+        let addr = self.read_d16();
+
+        debug!("CALL NC, 0x{:04x}", addr);
+
+        if !self.f_c() {
+            self._call(addr);
+        }
+    }
+
+    /// CALL Z, d16
+    fn call_z(&mut self) {
+        let addr = self.read_d16();
+
+        debug!("CALL Z, 0x{:04x}", addr);
+
+        if self.f_z() {
+            self._call(addr);
+        }
+    }
+
+    /// CALL C, d16
+    fn call_c(&mut self) {
+        let addr = self.read_d16();
+
+        debug!("CALL C, 0x{:04x}", addr);
+
+        if self.f_c() {
+            self._call(addr);
+        }
     }
 
     /// RET
@@ -698,6 +828,28 @@ impl CPU {
         self.mmu.write(addr, self.a);
     }
 
+    fn ld_a_ind_d16(&mut self) {
+        let addr = self.read_d16();
+
+        debug!("LD A, (0x{:04x})", addr);
+
+        self.a = self.mmu.read(addr);
+    }
+
+    /// Disable interrupt
+    fn di(&mut self) {
+        debug!("DI");
+
+        // TODO disable interrupt
+    }
+
+    /// Enable interrupt
+    fn ei(&mut self) {
+        debug!("EI");
+
+        // TODO enable interrupt
+    }
+
     /// Prefixed instructions
     fn prefix(&mut self) {
         let opcode = self.read_d8();
@@ -722,6 +874,8 @@ impl CPU {
         let reg2 = opcode >> 3 & 7;
 
         match opcode {
+            0x00 => self.nop(),
+
             // LD r16, d16
             0x01 => self.ld_r16_d16(Reg16::BC),
             0x11 => self.ld_r16_d16(Reg16::DE),
@@ -746,33 +900,34 @@ impl CPU {
             0xe1 => self.pop_hl(),
             0xf1 => self.pop_af(),
 
-            // Conditional jump
+            // Unconditional absolute jump
+            0xc3 => self.jp_d16(),
+
+            // Conditional relative jump
             0x20 => self.jr_nz_d8(),
             0x30 => self.jr_nc_d8(),
             0x28 => self.jr_z_d8(),
             0x38 => self.jr_c_d8(),
 
-            // Unconditional jump
+            // Unconditional relative jump
             0x18 => self.jr_d8(),
 
+            // Bit rotate on A
             0x07 => self.rlca(),
             0x17 => self.rla(),
             0x0f => self.rrca(),
             0x1f => self.rra(),
 
-            // AND r8
+            // Arithmethic/logical operation on 8-bit register
             0xa0...0xa7 => self.and_r8(reg),
-
-            // OR r8
             0xb0...0xb7 => self.or_r8(reg),
-
-            // XOR r8
             0xa8...0xaf => self.xor_r8(reg),
-
-            // CP r8
             0xb8...0xbf => self.cp_r8(reg),
 
-            // CP d8
+            // Arithmethic/logical operation on A
+            0xe6 => self.and_d8(),
+            0xf6 => self.or_d8(),
+            0xee => self.xor_d8(),
             0xfe => self.cp_d8(),
 
             // LDI, LDD
@@ -802,17 +957,30 @@ impl CPU {
             // LD (d16), A
             0xea => self.ld_ind_d16_a(),
 
+            // LD A, (d16)
+            0xfa => self.ld_a_ind_d16(),
+
             // INC r16
             0x03 => self.inc_bc(),
             0x13 => self.inc_de(),
             0x23 => self.inc_hl(),
             0x33 => self.inc_sp(),
 
-            // CALL d16
+            // Unconditional call
             0xcd => self.call(),
+
+            // Conditional call
+            0xc4 => self.call_nz(),
+            0xd4 => self.call_nc(),
+            0xcc => self.call_z(),
+            0xdc => self.call_c(),
 
             // RET
             0xc9 => self.ret(),
+
+            // DI, EI
+            0xf3 => self.di(),
+            0xfb => self.ei(),
 
             // CB prefixed
             0xcb => self.prefix(),

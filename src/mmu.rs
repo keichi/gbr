@@ -4,6 +4,7 @@ use std::io::Read;
 #[derive(Debug)]
 pub struct MMU {
     boot_rom: Vec<u8>,
+    rom: Vec<u8>,
     ram: Vec<u8>,
     hram: Vec<u8>,
 }
@@ -12,6 +13,7 @@ impl MMU {
     pub fn new() -> Self {
         let mut mmu = MMU {
             boot_rom: Vec::new(),
+            rom: Vec::new(),
             ram: vec![0; 0x2000],
             hram: vec![0; 0x7f],
         };
@@ -19,6 +21,11 @@ impl MMU {
         let mut file = File::open("dmg_boot.bin").unwrap();
         if file.read_to_end(&mut mmu.boot_rom).unwrap() != 0x100 {
             panic!("Boot ROM is corrupted");
+        }
+
+        let mut file = File::open("06-ld r,r.gb").unwrap();
+        if file.read_to_end(&mut mmu.rom).unwrap() != 0x8000 {
+            panic!("ROM is corrupted");
         }
 
         mmu
@@ -40,6 +47,8 @@ impl MMU {
         match addr {
             // Boot ROM
             0x0000...0x00ff => self.boot_rom[addr as usize],
+            // ROM
+            0x0100...0x7fff => self.rom[(addr & 0x7fff) as usize],
             // RAM
             0xc000...0xdfff => self.ram[(addr & 0x1fff) as usize],
             // HRAM
