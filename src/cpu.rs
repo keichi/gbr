@@ -757,6 +757,11 @@ impl CPU {
         }
     }
 
+    fn rst(&mut self, addr: u8) {
+        debug!("RST 0x{:02x}", addr);
+        self._call(addr as u16);
+    }
+
     fn _ret(&mut self) {
         self.pc = self.mmu.read16(self.sp);
         self.sp = self.sp.wrapping_add(2);
@@ -1103,6 +1108,16 @@ impl CPU {
             0xd0 => self.ret_nc(),
             0xc8 => self.ret_z(),
             0xd8 => self.ret_c(),
+
+            // RST
+            0xc7 => self.rst(0x00),
+            0xcf => self.rst(0x08),
+            0xd7 => self.rst(0x10),
+            0xdf => self.rst(0x18),
+            0xe7 => self.rst(0x20),
+            0xef => self.rst(0x28),
+            0xf7 => self.rst(0x30),
+            0xff => self.rst(0x38),
 
             // DI, EI
             0xf3 => self.di(),
