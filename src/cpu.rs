@@ -257,6 +257,78 @@ impl CPU {
         self.set_f_c(a < val);
     }
 
+    /// ADD d8
+    fn add_d8(&mut self) {
+        let val = self.read_d8();
+
+        debug!("ADD 0x{:02x}", val);
+
+        let half_carry = (self.a & 0xf) + (val & 0xf) > 0xf;
+        let (res, carry) = self.a.overflowing_add(val);
+
+        self.a = res;
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(half_carry);
+        self.set_f_c(carry);
+    }
+
+    /// SUB d8
+    fn sub_d8(&mut self) {
+        let val = self.read_d8();
+
+        debug!("SUB 0x{:02x}", val);
+
+        let half_carry = (self.a & 0xf) < (val & 0xf);
+        let (res, carry) = self.a.overflowing_sub(val);
+
+        self.a = res;
+
+        self.set_f_z(res == 0);
+        self.set_f_n(true);
+        self.set_f_h(half_carry);
+        self.set_f_c(carry);
+    }
+
+    /// ADC d8
+    fn adc_d8(&mut self) {
+        let val = self.read_d8();
+
+        debug!("ADC 0x{:02x}", val);
+
+        let half_carry = (self.a & 0xf) + (val & 0xf) > 0xf;
+        let (res, carry) = self.a.overflowing_add(val);
+        let half_carry2 = (res & 0xf) + 1 > 0xf;
+        let (res, carry2) = res.overflowing_add(1);
+
+        self.a = res;
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(half_carry | half_carry2);
+        self.set_f_c(carry | carry2);
+    }
+
+    /// SBC d8
+    fn sbc_d8(&mut self) {
+        let val = self.read_d8();
+
+        debug!("SBC 0x{:02x}", val);
+
+        let half_carry = (self.a & 0xf) < (val & 0xf);
+        let (res, carry) = self.a.overflowing_sub(val);
+        let half_carry2 = (res & 0xf) < 1;
+        let (res, carry2) = res.overflowing_sub(1);
+
+        self.a = res;
+
+        self.set_f_z(res == 0);
+        self.set_f_n(true);
+        self.set_f_h(half_carry | half_carry2);
+        self.set_f_c(carry | carry2);
+    }
+
     /// AND d8
     fn and_d8(&mut self) {
         let val = self.read_d8();
@@ -685,12 +757,52 @@ impl CPU {
         }
     }
 
+    fn _ret(&mut self) {
+        self.pc = self.mmu.read16(self.sp);
+        self.sp = self.sp.wrapping_add(2);
+    }
+
     /// RET
     fn ret(&mut self) {
         debug!("RET");
 
-        self.pc = self.mmu.read16(self.sp);
-        self.sp = self.sp.wrapping_add(2);
+        self._ret();
+    }
+
+    /// RET NZ
+    fn ret_nz(&mut self) {
+        debug!("RET NZ");
+
+        if !self.f_z() {
+            self._ret();
+        }
+    }
+
+    /// RET NC
+    fn ret_nc(&mut self) {
+        debug!("RET NC");
+
+        if !self.f_c() {
+            self._ret();
+        }
+    }
+
+    /// RET Z
+    fn ret_z(&mut self) {
+        debug!("RET Z");
+
+        if self.f_z() {
+            self._ret();
+        }
+    }
+
+    /// RET C
+    fn ret_c(&mut self) {
+        debug!("RET C");
+
+        if self.f_c() {
+            self._ret();
+        }
     }
 
     /// PUSH BC
@@ -929,8 +1041,12 @@ impl CPU {
             0xb8...0xbf => self.cp_r8(reg),
 
             // Arithmethic/logical operation on A
+            0xc6 => self.add_d8(),
+            0xd6 => self.sub_d8(),
             0xe6 => self.and_d8(),
             0xf6 => self.or_d8(),
+            0xce => self.adc_d8(),
+            0xde => self.sbc_d8(),
             0xee => self.xor_d8(),
             0xfe => self.cp_d8(),
 
@@ -979,8 +1095,14 @@ impl CPU {
             0xcc => self.call_z_d16(),
             0xdc => self.call_c_d16(),
 
-            // RET
+            // Unconditional ret
             0xc9 => self.ret(),
+
+            // Conditional ret
+            0xc0 => self.ret_nz(),
+            0xd0 => self.ret_nc(),
+            0xc8 => self.ret_z(),
+            0xd8 => self.ret_c(),
 
             // DI, EI
             0xf3 => self.di(),
