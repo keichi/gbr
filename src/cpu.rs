@@ -15,14 +15,6 @@ pub struct CPU {
     l: u8,
 }
 
-#[derive(Debug)]
-enum Reg16 {
-    BC,
-    DE,
-    HL,
-    SP,
-}
-
 impl CPU {
     pub fn new(mmu: mmu::MMU) -> Self {
         CPU {
@@ -124,6 +116,16 @@ impl CPU {
         }
     }
 
+    fn reg16_to_string(idx: u8) -> String {
+        match idx {
+            0 => String::from("BC"),
+            1 => String::from("DE"),
+            2 => String::from("HL"),
+            3 => String::from("SP"),
+            _ => panic!("Invalid operand index: {}", idx),
+        }
+    }
+
     /// Write 8-bit operand
     fn write_r8(&mut self, idx: u8, val: u8) {
         match idx {
@@ -157,6 +159,28 @@ impl CPU {
         }
     }
 
+    /// Write 16-bit operand
+    fn write_r16(&mut self, idx: u8, val: u16) {
+        match idx {
+            0 => self.set_bc(val),
+            1 => self.set_de(val),
+            2 => self.set_hl(val),
+            3 => self.sp = val,
+            _ => panic!("Invalid operand index: {}", idx),
+        }
+    }
+
+    /// Read 16-bit operand
+    fn read_r16(&mut self, idx: u8) -> u16 {
+        match idx {
+            0 => self.bc(),
+            1 => self.de(),
+            2 => self.hl(),
+            3 => self.sp,
+            _ => panic!("Invalid operand index: {}", idx),
+        }
+    }
+
     /// Read 8-bit immediate from memory
     fn read_d8(&mut self) -> u8 {
         let imm = self.mmu.read(self.pc);
@@ -179,27 +203,28 @@ impl CPU {
     }
 
     /// LD r16, d16
-    fn ld_r16_d16(&mut self, reg: Reg16) {
-        let lo = self.read_d8();
-        let hi = self.read_d8();
+    fn ld_r16_d16(&mut self, reg: u8) {
+        let val = self.read_d16();
 
-        debug!("LD {:?}, 0x{:02x}{:02x}", reg, hi, lo);
+        debug!("LD {}, 0x{:04x}", Self::reg16_to_string(reg), val);
 
-        match reg {
-            Reg16::BC => {
-                self.b = hi;
-                self.c = lo
-            }
-            Reg16::DE => {
-                self.d = hi;
-                self.e = lo
-            }
-            Reg16::HL => {
-                self.h = hi;
-                self.l = lo
-            }
-            Reg16::SP => self.sp = (hi as u16) << 8 | lo as u16,
-        }
+        self.write_r16(reg, val);
+    }
+
+    /// ADD HL, r16
+    fn add_hl_r16(&mut self, reg: u8) {
+        debug!("LD HL, {}", Self::reg16_to_string(reg));
+
+        let hl = self.hl();
+        let val = self.read_r16(reg);
+
+        let half_carry = (hl & 0xfff) + (val & 0xfff) > 0xfff;
+        let (res, carry) = hl.overflowing_add(val);
+        self.set_hl(res);
+
+        self.set_f_n(false);
+        self.set_f_h(half_carry);
+        self.set_f_c(carry);
     }
 
     /// AND r8
@@ -560,6 +585,13 @@ impl CPU {
         self.pc = address;
     }
 
+    /// Unconditional jump to HL
+    fn jp_hl(&mut self) {
+        debug!("JP (HL)");
+
+        self.pc = self.hl();
+    }
+
     /// Jump to pc+d8 if not Z
     fn jr_nz_d8(&mut self) {
         let offset = self.read_d8() as i8;
@@ -914,31 +946,18 @@ impl CPU {
         self.set_f_z(false);
     }
 
-    fn inc_bc(&mut self) {
-        debug!("INC BC");
+    fn inc_r16(&mut self, reg: u8) {
+        debug!("INC {}", Self::reg16_to_string(reg));
 
-        let val = self.bc();
-        self.set_bc(val.wrapping_add(1));
+        let val = self.read_r16(reg);
+        self.write_r16(reg, val.wrapping_add(1));
     }
 
-    fn inc_de(&mut self) {
-        debug!("INC DE");
+    fn dec_r16(&mut self, reg: u8) {
+        debug!("DEC {}", Self::reg16_to_string(reg));
 
-        let val = self.de();
-        self.set_de(val.wrapping_add(1));
-    }
-
-    fn inc_hl(&mut self) {
-        debug!("INC HL");
-
-        let val = self.hl();
-        self.set_hl(val.wrapping_add(1));
-    }
-
-    fn inc_sp(&mut self) {
-        debug!("INC SP");
-
-        self.sp = self.sp.wrapping_add(1);
+        let val = self.read_r16(reg);
+        self.write_r16(reg, val.wrapping_sub(1));
     }
 
     fn ld_ind_d16_a(&mut self) {
@@ -985,7 +1004,7 @@ impl CPU {
             0x40...0x7f => self.bit(pos, reg),
             0x80...0xbf => self.res(pos, reg),
             0xc0...0xff => self.set(pos, reg),
-            _ => println!("Unimplemented opcode 0xcb 0x{:x}", opcode),
+            _ => panic!("Unimplemented opcode 0xcb 0x{:x}", opcode),
         }
     }
 
@@ -998,10 +1017,10 @@ impl CPU {
             0x00 => self.nop(),
 
             // LD r16, d16
-            0x01 => self.ld_r16_d16(Reg16::BC),
-            0x11 => self.ld_r16_d16(Reg16::DE),
-            0x21 => self.ld_r16_d16(Reg16::HL),
-            0x31 => self.ld_r16_d16(Reg16::SP),
+            0x01 => self.ld_r16_d16(0),
+            0x11 => self.ld_r16_d16(1),
+            0x21 => self.ld_r16_d16(2),
+            0x31 => self.ld_r16_d16(3),
 
             // LD A, [r16]
             0x02 => self.ld_ind_bc_a(),
@@ -1023,6 +1042,7 @@ impl CPU {
 
             // Unconditional absolute jump
             0xc3 => self.jp_d16(),
+            0xe9 => self.jp_hl(),
 
             // Conditional relative jump
             0x20 => self.jr_nz_d8(),
@@ -1038,6 +1058,12 @@ impl CPU {
             0x17 => self.rla(),
             0x0f => self.rrca(),
             0x1f => self.rra(),
+
+            // Arithmethic/logical operation on 16-bit register
+            0x09 => self.add_hl_r16(0),
+            0x19 => self.add_hl_r16(1),
+            0x29 => self.add_hl_r16(2),
+            0x39 => self.add_hl_r16(3),
 
             // Arithmethic/logical operation on 8-bit register
             0xa0...0xa7 => self.and_r8(reg),
@@ -1085,11 +1111,15 @@ impl CPU {
             // LD A, (d16)
             0xfa => self.ld_a_ind_d16(),
 
-            // INC r16
-            0x03 => self.inc_bc(),
-            0x13 => self.inc_de(),
-            0x23 => self.inc_hl(),
-            0x33 => self.inc_sp(),
+            // INC, DEC r16
+            0x03 => self.inc_r16(0),
+            0x13 => self.inc_r16(1),
+            0x23 => self.inc_r16(2),
+            0x33 => self.inc_r16(3),
+            0x0b => self.dec_r16(0),
+            0x1b => self.dec_r16(1),
+            0x2b => self.dec_r16(2),
+            0x3b => self.dec_r16(3),
 
             // Unconditional call
             0xcd => self.call_d16(),
