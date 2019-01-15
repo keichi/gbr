@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::Read;
+use std::io::{self,Read,Write};
 
 #[derive(Debug)]
 pub struct MMU {
@@ -31,12 +31,21 @@ impl MMU {
         mmu
     }
 
+    fn print_char(&self, val: u8) {
+        let stdout = io::stdout();
+        let mut handle = stdout.lock();
+
+        write!(handle, "{}", val as char).unwrap();
+    }
+
     pub fn write(&mut self, addr: u16, val: u8) {
         debug!("MEM write [0x{:04x}] = 0x{:02x}", addr, val);
 
         match addr {
             // RAM
             0xc000...0xdfff => self.ram[(addr & 0x1fff) as usize] = val,
+            // Serial Interface
+            0xff01 => self.print_char(val),
             // HRAM
             0xff80...0xfffe => self.hram[(addr & 0x7f) as usize] = val,
             _ => (),
