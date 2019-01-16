@@ -56,10 +56,11 @@ impl MMU {
 
     pub fn read(&self, addr: u16) -> u8 {
         match addr {
+            // TODO load boot ROM
             // Boot ROM
-            0x0000...0x00ff => self.boot_rom[addr as usize],
+            // 0x0000...0x00ff => self.boot_rom[addr as usize],
             // ROM
-            0x0100...0x7fff => self.rom[(addr & 0x7fff) as usize],
+            0x0000...0x7fff => self.rom[(addr & 0x7fff) as usize],
             // RAM
             0xc000...0xdfff => self.ram[(addr & 0x1fff) as usize],
             // HRAM

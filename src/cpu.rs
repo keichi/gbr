@@ -250,7 +250,7 @@ impl CPU {
     }
 
     fn _add_sp(&mut self, offset: i8) -> u16 {
-        let val = offset as i16 as u16;
+        let val = offset as u16;
 
         let half_carry = (self.sp & 0x0f) + (val & 0x0f) > 0x0f;
         let carry = (self.sp & 0xff) + (val & 0xff) > 0xff;
