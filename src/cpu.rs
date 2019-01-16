@@ -304,6 +304,35 @@ impl CPU {
         self.set_f_c(a < val);
     }
 
+    /// Decimal adjust register A
+    fn daa(&mut self) {
+        debug!("DAA");
+
+        let mut a = self.a;
+
+        if !self.f_n() {
+            if self.f_c() || a > 0x99 {
+                a = a.wrapping_add(0x60);
+                self.set_f_c(true);
+            }
+            if self.f_h() || a & 0x0f > 0x09 {
+                a = a.wrapping_add(0x06);
+            }
+        } else {
+            if self.f_c() {
+                a = a.wrapping_sub(0x60);
+            }
+            if self.f_h() {
+                a = a.wrapping_sub(0x06);
+            }
+        }
+
+        self.a = a;
+
+        self.set_f_z(a == 0);
+        self.set_f_h(false);
+    }
+
     /// Complement A
     fn cpl(&mut self) {
         debug!("CPL");
@@ -1298,6 +1327,9 @@ impl CPU {
             0xb0...0xb7 => self.or_r8(reg),
             0xa8...0xaf => self.xor_r8(reg),
             0xb8...0xbf => self.cp_r8(reg),
+
+            // DAA
+            0x27 => self.daa(),
 
             // CPL
             0x2f => self.cpl(),
