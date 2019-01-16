@@ -249,6 +249,39 @@ impl CPU {
         self.set_f_c(carry);
     }
 
+    fn _add_sp(&mut self, offset: i8) -> u16 {
+        let val = offset as i16 as u16;
+
+        let half_carry = (self.sp & 0x0f) + (val & 0x0f) > 0x0f;
+        let carry = (self.sp & 0xff) + (val & 0xff) > 0xff;
+
+        self.set_f_z(false);
+        self.set_f_n(false);
+        self.set_f_h(half_carry);
+        self.set_f_c(carry);
+
+        self.sp.wrapping_add(val)
+    }
+
+    /// ADD SP, d8
+    fn add_sp_d8(&mut self) {
+        let val = self.read_d8() as i8;
+
+        debug!("ADD SP, {}", val);
+
+        self.sp = self._add_sp(val);
+    }
+
+    /// LD HL, SP+d8
+    fn ld_hl_sp_d8(&mut self) {
+        let offset = self.read_d8() as i8;
+
+        debug!("LD HL, SP{:+}", offset);
+
+        let res = self._add_sp(offset);
+        self.set_hl(res);
+    }
+
     /// AND r8
     fn and_r8(&mut self, reg: u8) {
         debug!("AND {}", Self::reg_to_string(reg));
@@ -1317,6 +1350,8 @@ impl CPU {
             0x19 => self.add_hl_r16(1),
             0x29 => self.add_hl_r16(2),
             0x39 => self.add_hl_r16(3),
+            0xe8 => self.add_sp_d8(),
+            0xf8 => self.ld_hl_sp_d8(),
 
             // Arithmethic/logical operation on 8-bit register
             0x80...0x87 => self.add_r8(reg),
@@ -1429,6 +1464,7 @@ impl CPU {
         }
     }
 
+    #[allow(dead_code)]
     pub fn dump(&self) {
         println!("CPU State:");
         println!("PC: 0x{:04x}  SP: 0x{:04x}", self.pc, self.sp);
