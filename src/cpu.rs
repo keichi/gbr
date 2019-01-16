@@ -15,6 +15,7 @@ pub struct CPU {
     e: u8,
     h: u8,
     l: u8,
+    ime: bool
 }
 
 impl CPU {
@@ -31,6 +32,7 @@ impl CPU {
             e: 0,
             h: 0,
             l: 0,
+            ime: false
         }
     }
 
@@ -1246,21 +1248,21 @@ impl CPU {
     fn di(&mut self) {
         debug!("DI");
 
-        // TODO disable interrupt
+        self.ime = false;
     }
 
     /// Enable interrupt
     fn ei(&mut self) {
         debug!("EI");
 
-        // TODO enable interrupt
+        self.ime = true;
     }
 
     /// Enable interrupt and return
     fn reti(&mut self) {
         debug!("RETI");
 
-        // TODO enable interrupt
+        self.ime = true;
 
         self._ret();
     }
