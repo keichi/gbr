@@ -300,16 +300,40 @@ impl CPU {
 
         self.set_f_z(a == val);
         self.set_f_n(true);
-        // self.set_f_h(??);
+        self.set_f_h(a & 0x0f < val & 0x0f);
         self.set_f_c(a < val);
     }
 
-    /// ADD d8
-    fn add_d8(&mut self) {
-        let val = self.read_d8();
+    /// Complement A
+    fn cpl(&mut self) {
+        debug!("CPL");
 
-        debug!("ADD 0x{:02x}", val);
+        self.a = !self.a;
+        self.set_f_n(true);
+        self.set_f_h(true);
+    }
 
+    /// Complement carry flag
+    fn ccf(&mut self) {
+        debug!("CCF");
+
+        self.set_f_n(false);
+        self.set_f_h(false);
+
+        let c = self.f_c();
+        self.set_f_c(!c);
+    }
+
+    /// Set carry flag
+    fn scf(&mut self) {
+        debug!("SCF");
+
+        self.set_f_n(false);
+        self.set_f_h(false);
+        self.set_f_c(true);
+    }
+
+    fn _add(&mut self, val: u8) {
         let half_carry = (self.a & 0xf) + (val & 0xf) > 0xf;
         let (res, carry) = self.a.overflowing_add(val);
 
@@ -321,12 +345,16 @@ impl CPU {
         self.set_f_c(carry);
     }
 
-    /// SUB d8
-    fn sub_d8(&mut self) {
+    /// ADD d8
+    fn add_d8(&mut self) {
         let val = self.read_d8();
 
-        debug!("SUB 0x{:02x}", val);
+        debug!("ADD 0x{:02x}", val);
 
+        self._add(val);
+    }
+
+    fn _sub(&mut self, val: u8) {
         let half_carry = (self.a & 0xf) < (val & 0xf);
         let (res, carry) = self.a.overflowing_sub(val);
 
@@ -338,12 +366,16 @@ impl CPU {
         self.set_f_c(carry);
     }
 
-    /// ADC d8
-    fn adc_d8(&mut self) {
+    /// SUB d8
+    fn sub_d8(&mut self) {
         let val = self.read_d8();
 
-        debug!("ADC 0x{:02x}", val);
+        debug!("SUB 0x{:02x}", val);
 
+        self._sub(val);
+    }
+
+    fn _adc(&mut self, val: u8) {
         let c = if self.f_c() { 1 } else { 0 };
 
         let res = self.a.wrapping_add(val).wrapping_add(c);
@@ -358,12 +390,17 @@ impl CPU {
         self.set_f_c(carry);
     }
 
-    /// SBC d8
-    fn sbc_d8(&mut self) {
+    /// ADC d8
+    fn adc_d8(&mut self) {
         let val = self.read_d8();
 
-        debug!("SBC 0x{:02x}", val);
+        debug!("ADC 0x{:02x}", val);
 
+        self._adc(val);
+    }
+
+
+    fn _sbc(&mut self, val: u8) {
         let c = if self.f_c() { 1 } else { 0 };
 
         let res = self.a.wrapping_sub(val).wrapping_sub(c);
@@ -376,6 +413,15 @@ impl CPU {
         self.set_f_n(true);
         self.set_f_h(half_carry);
         self.set_f_c(carry);
+    }
+
+    /// SBC d8
+    fn sbc_d8(&mut self) {
+        let val = self.read_d8();
+
+        debug!("SBC 0x{:02x}", val);
+
+        self._sbc(val);
     }
 
     /// AND d8
@@ -1187,6 +1233,13 @@ impl CPU {
             0xb0...0xb7 => self.or_r8(reg),
             0xa8...0xaf => self.xor_r8(reg),
             0xb8...0xbf => self.cp_r8(reg),
+
+            // CPL
+            0x2f => self.cpl(),
+
+            // SCF, CCF
+            0x37 => self.scf(),
+            0x3f => self.ccf(),
 
             // Arithmethic/logical operation on A
             0xc6 => self.add_d8(),
