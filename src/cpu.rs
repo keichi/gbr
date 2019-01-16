@@ -78,19 +78,19 @@ impl CPU {
         (self.f >> 7) & 1 == 1
     }
 
-    fn set_f_h(&mut self, h: bool) {
-        self.f = (self.f & !(1 << 6)) | (u8::from(h) << 6);
-    }
-
-    fn f_h(&self) -> bool {
-        (self.f >> 6) & 1 == 1
-    }
-
     fn set_f_n(&mut self, n: bool) {
-        self.f = (self.f & !(1 << 5)) | (u8::from(n) << 5);
+        self.f = (self.f & !(1 << 6)) | (u8::from(n) << 6);
     }
 
     fn f_n(&self) -> bool {
+        (self.f >> 6) & 1 == 1
+    }
+
+    fn set_f_h(&mut self, h: bool) {
+        self.f = (self.f & !(1 << 5)) | (u8::from(h) << 5);
+    }
+
+    fn f_h(&self) -> bool {
         (self.f >> 5) & 1 == 1
     }
 
@@ -213,7 +213,7 @@ impl CPU {
 
     /// ADD HL, r16
     fn add_hl_r16(&mut self, reg: u8) {
-        debug!("LD HL, {}", Self::reg16_to_string(reg));
+        debug!("ADD HL, {}", Self::reg16_to_string(reg));
 
         let hl = self.hl();
         let val = self.read_r16(reg);
@@ -1044,6 +1044,7 @@ impl CPU {
         let reg2 = opcode >> 3 & 7;
 
         match opcode {
+            // NOP
             0x00 => self.nop(),
 
             // LD r16, d16
