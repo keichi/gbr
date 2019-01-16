@@ -322,17 +322,18 @@ impl CPU {
 
         debug!("ADC 0x{:02x}", val);
 
-        let half_carry = (self.a & 0xf) + (val & 0xf) > 0xf;
-        let (res, carry) = self.a.overflowing_add(val);
-        let half_carry2 = (res & 0xf) + 1 > 0xf;
-        let (res, carry2) = res.overflowing_add(1);
+        let c = if self.f_c() { 1 } else { 0 };
+
+        let res = self.a.wrapping_add(val).wrapping_add(c);
+        let half_carry = (self.a & 0xf) + (val & 0xf) + c > 0xf;
+        let carry = (self.a as u16) + (val as u16) + (c as u16) > 0xff;
 
         self.a = res;
 
         self.set_f_z(res == 0);
         self.set_f_n(false);
-        self.set_f_h(half_carry | half_carry2);
-        self.set_f_c(carry | carry2);
+        self.set_f_h(half_carry);
+        self.set_f_c(carry);
     }
 
     /// SBC d8
@@ -341,17 +342,18 @@ impl CPU {
 
         debug!("SBC 0x{:02x}", val);
 
-        let half_carry = (self.a & 0xf) < (val & 0xf);
-        let (res, carry) = self.a.overflowing_sub(val);
-        let half_carry2 = (res & 0xf) < 1;
-        let (res, carry2) = res.overflowing_sub(1);
+        let c = if self.f_c() { 1 } else { 0 };
+
+        let res = self.a.wrapping_sub(val).wrapping_sub(c);
+        let half_carry = (self.a & 0xf) < (val & 0xf) + c;
+        let carry = (self.a as u16) < (val as u16) + (c as u16);
 
         self.a = res;
 
         self.set_f_z(res == 0);
         self.set_f_n(true);
-        self.set_f_h(half_carry | half_carry2);
-        self.set_f_c(carry | carry2);
+        self.set_f_h(half_carry);
+        self.set_f_c(carry);
     }
 
     /// AND d8
@@ -412,7 +414,7 @@ impl CPU {
 
         self.set_f_z(a == imm);
         self.set_f_n(true);
-        // TODO self.set_f_h(??);
+        self.set_f_h(a & 0x0f < imm & 0x0f);
         self.set_f_c(a < imm);
     }
 
