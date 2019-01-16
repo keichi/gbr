@@ -345,6 +345,38 @@ impl CPU {
         self.set_f_c(carry);
     }
 
+    fn add_r8(&mut self, reg: u8) {
+        let val = self.read_r8(reg);
+
+        debug!("ADD {}", Self::reg_to_string(reg));
+
+        self._add(val);
+    }
+
+    fn adc_r8(&mut self, reg: u8) {
+        let val = self.read_r8(reg);
+
+        debug!("ADC {}", Self::reg_to_string(reg));
+
+        self._adc(val);
+    }
+
+    fn sub_r8(&mut self, reg: u8) {
+        let val = self.read_r8(reg);
+
+        debug!("SUB {}", Self::reg_to_string(reg));
+
+        self._sub(val);
+    }
+
+    fn sbc_r8(&mut self, reg: u8) {
+        let val = self.read_r8(reg);
+
+        debug!("SBC {}", Self::reg_to_string(reg));
+
+        self._sbc(val);
+    }
+
     /// ADD d8
     fn add_d8(&mut self) {
         let val = self.read_d8();
@@ -398,7 +430,6 @@ impl CPU {
 
         self._adc(val);
     }
-
 
     fn _sbc(&mut self, val: u8) {
         let c = if self.f_c() { 1 } else { 0 };
@@ -644,6 +675,34 @@ impl CPU {
         debug!("RRC {}", Self::reg_to_string(reg));
 
         self._rrc(reg);
+    }
+
+    /// Shift left into carry
+    fn sla(&mut self, reg: u8) {
+        debug!("SLA {}", Self::reg_to_string(reg));
+
+        let orig = self.read_r8(reg);
+        let res = orig << 1;
+        self.write_r8(reg, res);
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(false);
+        self.set_f_c(orig & 0x80 > 0);
+    }
+
+    /// Shift right into carry
+    fn sra(&mut self, reg: u8) {
+        debug!("SRA {}", Self::reg_to_string(reg));
+
+        let orig = self.read_r8(reg);
+        let res = (orig >> 1) | (orig & 0x80);
+        self.write_r8(reg, res);
+
+        self.set_f_z(res == 0);
+        self.set_f_n(false);
+        self.set_f_h(false);
+        self.set_f_c(orig & 1 > 0);
     }
 
     /// Swap low/hi-nibble
@@ -1149,6 +1208,8 @@ impl CPU {
             0x08...0x0f => self.rrc(reg),
             0x10...0x17 => self.rl(reg),
             0x18...0x1f => self.rr(reg),
+            0x20...0x27 => self.sla(reg),
+            0x28...0x2f => self.sra(reg),
             0x30...0x37 => self.swap(reg),
             0x38...0x3f => self.srl(reg),
             0x40...0x7f => self.bit(pos, reg),
@@ -1229,6 +1290,10 @@ impl CPU {
             0x39 => self.add_hl_r16(3),
 
             // Arithmethic/logical operation on 8-bit register
+            0x80...0x87 => self.add_r8(reg),
+            0x88...0x8f => self.adc_r8(reg),
+            0x90...0x97 => self.sub_r8(reg),
+            0x98...0x9f => self.sbc_r8(reg),
             0xa0...0xa7 => self.and_r8(reg),
             0xb0...0xb7 => self.or_r8(reg),
             0xa8...0xaf => self.xor_r8(reg),
