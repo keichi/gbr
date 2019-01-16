@@ -877,8 +877,8 @@ impl CPU {
         debug!("PUSH BC");
 
         self.sp = self.sp.wrapping_sub(2);
-        self.mmu.write(self.sp, self.c);
-        self.mmu.write(self.sp.wrapping_add(1), self.b);
+        let val = self.bc();
+        self.mmu.write16(self.sp, val);
     }
 
     /// PUSH DE
@@ -886,8 +886,8 @@ impl CPU {
         debug!("PUSH DE");
 
         self.sp = self.sp.wrapping_sub(2);
-        self.mmu.write(self.sp, self.e);
-        self.mmu.write(self.sp.wrapping_add(1), self.d);
+        let val = self.de();
+        self.mmu.write16(self.sp, val);
     }
 
     /// PUSH HL
@@ -895,8 +895,8 @@ impl CPU {
         debug!("PUSH HL");
 
         self.sp = self.sp.wrapping_sub(2);
-        self.mmu.write(self.sp, self.l);
-        self.mmu.write(self.sp.wrapping_add(1), self.h);
+        let val = self.hl();
+        self.mmu.write16(self.sp, val);
     }
 
     /// PUSH AF
@@ -904,17 +904,16 @@ impl CPU {
         debug!("PUSH AF");
 
         self.sp = self.sp.wrapping_sub(2);
-        self.mmu.write(self.sp, self.f);
-        self.mmu.write(self.sp.wrapping_add(1), self.a);
+        let val = self.af();
+        self.mmu.write16(self.sp, val);
     }
 
     /// POP BC
     fn pop_bc(&mut self) {
         debug!("POP BC");
 
-        self.c = self.mmu.read(self.sp);
-        self.b = self.mmu.read(self.sp.wrapping_add(1));
-
+        let val = self.mmu.read16(self.sp);
+        self.set_bc(val);
         self.sp = self.sp.wrapping_add(2);
     }
 
@@ -922,9 +921,8 @@ impl CPU {
     fn pop_de(&mut self) {
         debug!("POP DE");
 
-        self.e = self.mmu.read(self.sp);
-        self.d = self.mmu.read(self.sp.wrapping_add(1));
-
+        let val = self.mmu.read16(self.sp);
+        self.set_de(val);
         self.sp = self.sp.wrapping_add(2);
     }
 
@@ -932,9 +930,8 @@ impl CPU {
     fn pop_hl(&mut self) {
         debug!("POP HL");
 
-        self.l = self.mmu.read(self.sp);
-        self.h = self.mmu.read(self.sp.wrapping_add(1));
-
+        let val = self.mmu.read16(self.sp);
+        self.set_hl(val);
         self.sp = self.sp.wrapping_add(2);
     }
 
@@ -942,9 +939,9 @@ impl CPU {
     fn pop_af(&mut self) {
         debug!("POP AF");
 
-        self.f = self.mmu.read(self.sp);
-        self.a = self.mmu.read(self.sp.wrapping_add(1));
-
+        // lower nibble of F is always zero
+        let val = self.mmu.read16(self.sp) & 0xfff0;
+        self.set_af(val);
         self.sp = self.sp.wrapping_add(2);
     }
 
