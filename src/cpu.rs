@@ -34,7 +34,13 @@ impl CPU {
 
     /// Read AF register
     fn af(&self) -> u16 {
-        (self.a as u16) << 8
+        (self.a as u16) << 8 | self.f as u16
+    }
+
+    /// Write AF register
+    fn set_af(&mut self, val: u16) {
+        self.a = (val >> 8 & 0xff) as u8;
+        self.f = (val & 0xff) as u8;
     }
 
     /// Read BC register
@@ -209,6 +215,22 @@ impl CPU {
         debug!("LD {}, 0x{:04x}", Self::reg16_to_string(reg), val);
 
         self.write_r16(reg, val);
+    }
+
+    /// LD (d16), SP
+    fn ld_ind_d16_sp(&mut self) {
+        let addr = self.read_d16();
+
+        debug!("LD (0x{:04x}), SP", addr);
+
+        self.mmu.write16(addr, self.sp);
+    }
+
+    /// LD SP, HL
+    fn ld_sp_hl(&mut self) {
+        debug!("LD SP, HL");
+
+        self.sp = self.hl();
     }
 
     /// ADD HL, r16
@@ -604,6 +626,50 @@ impl CPU {
         self.set_f_n(false);
         self.set_f_h(false);
         self.set_f_c(orig & 1 == 1);
+    }
+
+    fn _jp(&mut self, addr: u16) {
+        self.pc = addr;
+    }
+
+    fn jp_nz_d8(&mut self) {
+        let addr = self.read_d16();
+
+        debug!("JP NZ, 0x{:04x}", addr);
+
+        if !self.f_z() {
+            self._jp(addr);
+        }
+    }
+
+    fn jp_nc_d8(&mut self) {
+        let addr = self.read_d16();
+
+        debug!("JP NC, 0x{:04x}", addr);
+
+        if !self.f_c() {
+            self._jp(addr);
+        }
+    }
+
+    fn jp_z_d8(&mut self) {
+        let addr = self.read_d16();
+
+        debug!("JP Z, 0x{:04x}", addr);
+
+        if self.f_z() {
+            self._jp(addr);
+        }
+    }
+
+    fn jp_c_d8(&mut self) {
+        let addr = self.read_d16();
+
+        debug!("JP C, 0x{:04x}", addr);
+
+        if self.f_c() {
+            self._jp(addr);
+        }
     }
 
     /// Unconditional jump to d16
@@ -1017,6 +1083,15 @@ impl CPU {
         // TODO enable interrupt
     }
 
+    /// Enable interrupt and return
+    fn reti(&mut self) {
+        debug!("RETI");
+
+        // TODO enable interrupt
+
+        self._ret();
+    }
+
     /// Prefixed instructions
     fn prefix(&mut self) {
         let opcode = self.read_d8();
@@ -1052,7 +1127,13 @@ impl CPU {
             0x21 => self.ld_r16_d16(2),
             0x31 => self.ld_r16_d16(3),
 
-            // LD A, [r16]
+            // LD (d16), SP
+            0x08 => self.ld_ind_d16_sp(),
+
+            // LD SP, HL
+            0xf9 => self.ld_sp_hl(),
+
+            // LD A, (r16)
             0x02 => self.ld_ind_bc_a(),
             0x12 => self.ld_ind_de_a(),
             0x0a => self.ld_a_ind_bc(),
@@ -1069,6 +1150,12 @@ impl CPU {
             0xd1 => self.pop_de(),
             0xe1 => self.pop_hl(),
             0xf1 => self.pop_af(),
+
+            // Conditional absolute jump
+            0xc2 => self.jp_nz_d8(),
+            0xd2 => self.jp_nc_d8(),
+            0xca => self.jp_z_d8(),
+            0xda => self.jp_c_d8(),
 
             // Unconditional absolute jump
             0xc3 => self.jp_d16(),
@@ -1169,6 +1256,9 @@ impl CPU {
             0xc8 => self.ret_z(),
             0xd8 => self.ret_c(),
 
+            // RETI
+            0xd9 => self.reti(),
+
             // RST
             0xc7 => self.rst(0x00),
             0xcf => self.rst(0x08),
@@ -1191,11 +1281,8 @@ impl CPU {
 
     pub fn dump(&self) {
         println!("CPU State:");
-        println!("PC: 0x{:04x}", self.pc);
-        println!("SP: 0x{:04x}", self.sp);
-        println!("AF: 0x{:04x}", self.af());
-        println!("BC: 0x{:04x}", self.bc());
-        println!("DE: 0x{:04x}", self.de());
-        println!("HL: 0x{:04x}", self.hl());
+        println!("PC: 0x{:04x}  SP: 0x{:04x}", self.pc, self.sp);
+        println!("AF: 0x{:04x}  BC: 0x{:04x}", self.af(), self.bc());
+        println!("DE: 0x{:04x}  HL: 0x{:04x}", self.de(), self.hl());
     }
 }
