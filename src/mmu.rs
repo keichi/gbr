@@ -11,24 +11,26 @@ pub struct MMU {
 
 impl MMU {
     pub fn new() -> Self {
-        let mut mmu = MMU {
+        MMU {
             boot_rom: Vec::new(),
             rom: Vec::new(),
             ram: vec![0; 0x2000],
             hram: vec![0; 0x7f],
-        };
+        }
+    }
 
-        let mut file = File::open("dmg_boot.bin").unwrap();
-        if file.read_to_end(&mut mmu.boot_rom).unwrap() != 0x100 {
+    pub fn load_boot_rom(&mut self, fname: &str) {
+        let mut file = File::open(fname).unwrap();
+        if file.read_to_end(&mut self.boot_rom).unwrap() != 0x100 {
             panic!("Boot ROM is corrupted");
         }
+    }
 
-        let mut file = File::open("06-ld r,r.gb").unwrap();
-        if file.read_to_end(&mut mmu.rom).unwrap() != 0x8000 {
+    pub fn load_rom(&mut self, fname: &str) {
+        let mut file = File::open(fname).unwrap();
+        if file.read_to_end(&mut self.rom).unwrap() != 0x8000 {
             panic!("ROM is corrupted");
         }
-
-        mmu
     }
 
     fn print_char(&self, val: u8) {
