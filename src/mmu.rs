@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{self,Read,Write};
+use std::io::{self, Read, Write};
 
 #[derive(Debug)]
 pub struct MMU {

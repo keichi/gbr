@@ -1,3 +1,5 @@
+use std::env;
+
 #[macro_use]
 extern crate log;
 extern crate env_logger;
@@ -21,10 +23,14 @@ fn main() {
     // mmu.load_rom("10-bit ops.gb");
     // mmu.load_rom("11-op a,(hl).gb");
 
+    let args: Vec<String> = env::args().collect();
+    mmu.load_rom(&args[1]);
+
     let mut cpu = cpu::CPU::new(mmu);
 
     loop {
         cpu.step();
+        cpu.check_interrupt();
         // cpu.dump();
     }
 }

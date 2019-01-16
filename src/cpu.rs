@@ -1,3 +1,5 @@
+use std::process;
+
 use mmu;
 
 #[derive(Debug)]
@@ -909,6 +911,10 @@ impl CPU {
 
         debug!("JR {}", offset);
 
+        if offset == -2 {
+            process::exit(0);
+        }
+
         self._jr(offset);
     }
 
@@ -1462,6 +1468,9 @@ impl CPU {
             0xcb => self.prefix(),
             _ => panic!("Unimplemented opcode 0x{:x}", opcode),
         }
+    }
+
+    pub fn check_interrupt(&mut self) {
     }
 
     #[allow(dead_code)]
