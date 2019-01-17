@@ -147,7 +147,7 @@ impl CPU {
             5 => self.l = val,
             6 => {
                 let hl = self.hl();
-                self.mmu.write(hl, val);
+                self.write_mem8(hl, val);
             }
             7 => self.a = val,
             _ => panic!("Invalid operand index: {}", idx),
@@ -163,7 +163,7 @@ impl CPU {
             3 => self.e,
             4 => self.h,
             5 => self.l,
-            6 => self.mmu.read(self.hl()),
+            6 => self.read_mem8(self.hl()),
             7 => self.a,
             _ => panic!("Invalid operand index: {}", idx),
         }
@@ -193,7 +193,7 @@ impl CPU {
 
     /// Read 8-bit immediate from memory
     fn read_d8(&mut self) -> u8 {
-        let imm = self.mmu.read(self.pc);
+        let imm = self.read_mem8(self.pc);
         self.pc = self.pc.wrapping_add(1);
 
         imm
@@ -201,10 +201,55 @@ impl CPU {
 
     /// Read 16-bit immediate from memory
     fn read_d16(&mut self) -> u16 {
-        let imm = self.mmu.read16(self.pc);
+        let imm = self.read_mem16(self.pc);
         self.pc = self.pc.wrapping_add(2);
 
         imm
+    }
+
+    /// Check branch condition
+    fn cc(&self, idx: u8) -> bool {
+        match idx {
+            0 => !self.f_z(),
+            1 => self.f_z(),
+            2 => !self.f_c(),
+            3 => self.f_c(),
+            _ => panic!("Invalid branch condition index: {}", idx),
+        }
+    }
+
+    fn cc_to_string(idx: u8) -> String {
+        match idx {
+            0 => String::from("NZ"),
+            1 => String::from("Z"),
+            2 => String::from("NC"),
+            3 => String::from("C"),
+            _ => panic!("Invalid branch condition index: {}", idx),
+        }
+    }
+
+    /// Write 8-bit value to memory
+    fn write_mem8(&mut self, addr: u16, val: u8) {
+        self.mmu.write(addr, val);
+    }
+
+    /// Read 8-bit value from memory
+    fn read_mem8(&self, addr: u16) -> u8 {
+        self.mmu.read(addr)
+    }
+
+    /// Write 16-bit value to memory
+    fn write_mem16(&mut self, addr: u16, val: u16) {
+        self.write_mem8(addr, (val & 0xff) as u8);
+        self.write_mem8(addr.wrapping_add(1), (val >> 8) as u8);
+    }
+
+    /// Read 16-bit value from memory
+    fn read_mem16(&self, addr: u16) -> u16 {
+        let lo = self.read_mem8(addr);
+        let hi = self.read_mem8(addr.wrapping_add(1));
+
+        (hi as u16) << 8 | lo as u16
     }
 
     /// NOP
@@ -224,10 +269,11 @@ impl CPU {
     /// LD (d16), SP
     fn ld_ind_d16_sp(&mut self) {
         let addr = self.read_d16();
+        let sp = self.sp;
 
         debug!("LD (0x{:04x}), SP", addr);
 
-        self.mmu.write16(addr, self.sp);
+        self.write_mem16(addr, sp);
     }
 
     /// LD SP, HL
@@ -587,7 +633,8 @@ impl CPU {
         debug!("LD (HL+), A");
 
         let addr = self.hl();
-        self.mmu.write(addr, self.a);
+        let a = self.a;
+        self.write_mem8(addr, a);
         let hl = self.hl();
         self.set_hl(hl.wrapping_add(1));
     }
@@ -596,7 +643,8 @@ impl CPU {
         debug!("LD (HL-), A");
 
         let addr = self.hl();
-        self.mmu.write(addr, self.a);
+        let a = self.a;
+        self.write_mem8(addr, a);
         let hl = self.hl();
         self.set_hl(hl.wrapping_sub(1));
     }
@@ -605,7 +653,7 @@ impl CPU {
         debug!("LD A, (HL+)");
 
         let addr = self.hl();
-        self.a = self.mmu.read(addr);
+        self.a = self.read_mem8(addr);
         let hl = self.hl();
         self.set_hl(hl.wrapping_add(1));
     }
@@ -614,7 +662,7 @@ impl CPU {
         debug!("LD A, (HL-)");
 
         let addr = self.hl();
-        self.a = self.mmu.read(addr);
+        self.a = self.read_mem8(addr);
         let hl = self.hl();
         self.set_hl(hl.wrapping_sub(1));
     }
@@ -623,26 +671,28 @@ impl CPU {
         debug!("LD (BC), A");
 
         let addr = self.bc();
-        self.mmu.write(addr, self.a);
+        let a = self.a;
+        self.write_mem8(addr, a);
     }
 
     fn ld_ind_de_a(&mut self) {
         debug!("LD (DE), A");
 
         let addr = self.de();
-        self.mmu.write(addr, self.a);
+        let a = self.a;
+        self.write_mem8(addr, a);
     }
 
     fn ld_a_ind_bc(&mut self) {
         debug!("LD A, (BC)");
 
-        self.a = self.mmu.read(self.bc());
+        self.a = self.read_mem8(self.bc());
     }
 
     fn ld_a_ind_de(&mut self) {
         debug!("LD A, (DE)");
 
-        self.a = self.mmu.read(self.de());
+        self.a = self.read_mem8(self.de());
     }
 
     /// Test bit
@@ -803,42 +853,12 @@ impl CPU {
         self.pc = addr;
     }
 
-    fn jp_nz_d8(&mut self) {
+    fn jp_cc_d8(&mut self, cci: u8) {
         let addr = self.read_d16();
 
-        debug!("JP NZ, 0x{:04x}", addr);
+        debug!("JP {}, 0x{:04x}", Self::cc_to_string(cci), addr);
 
-        if !self.f_z() {
-            self._jp(addr);
-        }
-    }
-
-    fn jp_nc_d8(&mut self) {
-        let addr = self.read_d16();
-
-        debug!("JP NC, 0x{:04x}", addr);
-
-        if !self.f_c() {
-            self._jp(addr);
-        }
-    }
-
-    fn jp_z_d8(&mut self) {
-        let addr = self.read_d16();
-
-        debug!("JP Z, 0x{:04x}", addr);
-
-        if self.f_z() {
-            self._jp(addr);
-        }
-    }
-
-    fn jp_c_d8(&mut self) {
-        let addr = self.read_d16();
-
-        debug!("JP C, 0x{:04x}", addr);
-
-        if self.f_c() {
+        if self.cc(cci) {
             self._jp(addr);
         }
     }
@@ -859,46 +879,13 @@ impl CPU {
         self.pc = self.hl();
     }
 
-    /// Jump to pc+d8 if not Z
-    fn jr_nz_d8(&mut self) {
+    /// Jump to pc+d8 if CC
+    fn jr_cc_d8(&mut self, cci: u8) {
         let offset = self.read_d8() as i8;
 
-        debug!("JR NZ, {}", offset);
+        debug!("JR {}, {}", Self::cc_to_string(cci), offset);
 
-        if !self.f_z() {
-            self._jr(offset);
-        }
-    }
-
-    /// Jump to pc+d8 if not C
-    fn jr_nc_d8(&mut self) {
-        let offset = self.read_d8() as i8;
-
-        debug!("JR NC, {}", offset);
-
-        if !self.f_c() {
-            self._jr(offset);
-        }
-    }
-
-    /// Jump to pc+d8 if Z
-    fn jr_z_d8(&mut self) {
-        let offset = self.read_d8() as i8;
-
-        debug!("JR Z, {}", offset);
-
-        if self.f_z() {
-            self._jr(offset);
-        }
-    }
-
-    /// Jump to pc+d8 if C
-    fn jr_c_d8(&mut self) {
-        let offset = self.read_d8() as i8;
-
-        debug!("JR C, {}", offset);
-
-        if self.f_c() {
+        if self.cc(cci) {
             self._jr(offset);
         }
     }
@@ -923,10 +910,11 @@ impl CPU {
     fn ld_io_d8_a(&mut self) {
         let offset = self.read_d8() as u16;
         let addr = 0xff00 | offset;
+        let a = self.a;
 
         debug!("LD (0xff00+0x{:02x}), A", offset);
 
-        self.mmu.write(addr, self.a);
+        self.write_mem8(addr, a);
     }
 
     fn ld_a_io_d8(&mut self) {
@@ -935,15 +923,16 @@ impl CPU {
 
         debug!("LD A, (0xff00+0x{:02x})", offset);
 
-        self.a = self.mmu.read(addr);
+        self.a = self.read_mem8(addr);
     }
 
     fn ld_io_c_a(&mut self) {
         let addr = 0xff00 | self.c as u16;
+        let a = self.a;
 
         debug!("LD (0xff00+C), A");
 
-        self.mmu.write(addr, self.a);
+        self.write_mem8(addr, a);
     }
 
     fn ld_a_io_c(&mut self) {
@@ -951,7 +940,7 @@ impl CPU {
 
         debug!("LD A, (0xff00+C)");
 
-        self.a = self.mmu.read(addr);
+        self.a = self.read_mem8(addr);
     }
 
     /// LD r8, d8
@@ -1003,7 +992,10 @@ impl CPU {
 
     fn _call(&mut self, addr: u16) {
         self.sp = self.sp.wrapping_sub(2);
-        self.mmu.write16(self.sp, self.pc);
+        let sp = self.sp;
+        let pc = self.pc;
+
+        self.write_mem16(sp, pc);
         self.pc = addr;
     }
 
@@ -1016,46 +1008,13 @@ impl CPU {
         self._call(addr);
     }
 
-    /// CALL NZ, d16
-    fn call_nz_d16(&mut self) {
+    /// CALL CC, d16
+    fn call_cc_d16(&mut self, cci: u8) {
         let addr = self.read_d16();
 
-        debug!("CALL NZ, 0x{:04x}", addr);
+        debug!("CALL {}, 0x{:04x}", Self::cc_to_string(cci), addr);
 
-        if !self.f_z() {
-            self._call(addr);
-        }
-    }
-
-    /// CALL NC, d16
-    fn call_nc_d16(&mut self) {
-        let addr = self.read_d16();
-
-        debug!("CALL NC, 0x{:04x}", addr);
-
-        if !self.f_c() {
-            self._call(addr);
-        }
-    }
-
-    /// CALL Z, d16
-    fn call_z_d16(&mut self) {
-        let addr = self.read_d16();
-
-        debug!("CALL Z, 0x{:04x}", addr);
-
-        if self.f_z() {
-            self._call(addr);
-        }
-    }
-
-    /// CALL C, d16
-    fn call_c_d16(&mut self) {
-        let addr = self.read_d16();
-
-        debug!("CALL C, 0x{:04x}", addr);
-
-        if self.f_c() {
+        if self.cc(cci) {
             self._call(addr);
         }
     }
@@ -1066,7 +1025,7 @@ impl CPU {
     }
 
     fn _ret(&mut self) {
-        self.pc = self.mmu.read16(self.sp);
+        self.pc = self.read_mem16(self.sp);
         self.sp = self.sp.wrapping_add(2);
     }
 
@@ -1077,38 +1036,11 @@ impl CPU {
         self._ret();
     }
 
-    /// RET NZ
-    fn ret_nz(&mut self) {
-        debug!("RET NZ");
+    /// RET CC
+    fn ret_cc(&mut self, cci: u8) {
+        debug!("RET {}", Self::cc_to_string(cci));
 
-        if !self.f_z() {
-            self._ret();
-        }
-    }
-
-    /// RET NC
-    fn ret_nc(&mut self) {
-        debug!("RET NC");
-
-        if !self.f_c() {
-            self._ret();
-        }
-    }
-
-    /// RET Z
-    fn ret_z(&mut self) {
-        debug!("RET Z");
-
-        if self.f_z() {
-            self._ret();
-        }
-    }
-
-    /// RET C
-    fn ret_c(&mut self) {
-        debug!("RET C");
-
-        if self.f_c() {
+        if self.cc(cci) {
             self._ret();
         }
     }
@@ -1119,7 +1051,9 @@ impl CPU {
 
         self.sp = self.sp.wrapping_sub(2);
         let val = self.bc();
-        self.mmu.write16(self.sp, val);
+        let sp = self.sp;
+
+        self.write_mem16(sp, val);
     }
 
     /// PUSH DE
@@ -1128,7 +1062,9 @@ impl CPU {
 
         self.sp = self.sp.wrapping_sub(2);
         let val = self.de();
-        self.mmu.write16(self.sp, val);
+        let sp = self.sp;
+
+        self.write_mem16(sp, val);
     }
 
     /// PUSH HL
@@ -1137,7 +1073,9 @@ impl CPU {
 
         self.sp = self.sp.wrapping_sub(2);
         let val = self.hl();
-        self.mmu.write16(self.sp, val);
+        let sp = self.sp;
+
+        self.write_mem16(sp, val);
     }
 
     /// PUSH AF
@@ -1146,14 +1084,16 @@ impl CPU {
 
         self.sp = self.sp.wrapping_sub(2);
         let val = self.af();
-        self.mmu.write16(self.sp, val);
+        let sp = self.sp;
+
+        self.write_mem16(sp, val);
     }
 
     /// POP BC
     fn pop_bc(&mut self) {
         debug!("POP BC");
 
-        let val = self.mmu.read16(self.sp);
+        let val = self.read_mem16(self.sp);
         self.set_bc(val);
         self.sp = self.sp.wrapping_add(2);
     }
@@ -1162,7 +1102,7 @@ impl CPU {
     fn pop_de(&mut self) {
         debug!("POP DE");
 
-        let val = self.mmu.read16(self.sp);
+        let val = self.read_mem16(self.sp);
         self.set_de(val);
         self.sp = self.sp.wrapping_add(2);
     }
@@ -1171,7 +1111,7 @@ impl CPU {
     fn pop_hl(&mut self) {
         debug!("POP HL");
 
-        let val = self.mmu.read16(self.sp);
+        let val = self.read_mem16(self.sp);
         self.set_hl(val);
         self.sp = self.sp.wrapping_add(2);
     }
@@ -1181,7 +1121,7 @@ impl CPU {
         debug!("POP AF");
 
         // lower nibble of F is always zero
-        let val = self.mmu.read16(self.sp) & 0xfff0;
+        let val = self.read_mem16(self.sp) & 0xfff0;
         self.set_af(val);
         self.sp = self.sp.wrapping_add(2);
     }
@@ -1230,10 +1170,11 @@ impl CPU {
 
     fn ld_ind_d16_a(&mut self) {
         let addr = self.read_d16();
+        let a = self.a;
 
         debug!("LD (0x{:04x}), A", addr);
 
-        self.mmu.write(addr, self.a);
+        self.write_mem8(addr, a);
     }
 
     fn ld_a_ind_d16(&mut self) {
@@ -1241,7 +1182,7 @@ impl CPU {
 
         debug!("LD A, (0x{:04x})", addr);
 
-        self.a = self.mmu.read(addr);
+        self.a = self.read_mem8(addr);
     }
 
     /// Disable interrupt
@@ -1299,10 +1240,7 @@ impl CPU {
             0x00 => self.nop(),
 
             // LD r16, d16
-            0x01 => self.ld_r16_d16(0),
-            0x11 => self.ld_r16_d16(1),
-            0x21 => self.ld_r16_d16(2),
-            0x31 => self.ld_r16_d16(3),
+            0x01 | 0x11 | 0x21 | 0x31 => self.ld_r16_d16(opcode >> 4),
 
             // LD (d16), SP
             0x08 => self.ld_ind_d16_sp(),
@@ -1329,20 +1267,14 @@ impl CPU {
             0xf1 => self.pop_af(),
 
             // Conditional absolute jump
-            0xc2 => self.jp_nz_d8(),
-            0xd2 => self.jp_nc_d8(),
-            0xca => self.jp_z_d8(),
-            0xda => self.jp_c_d8(),
+            0xc2 | 0xd2 | 0xca | 0xda => self.jp_cc_d8(reg2),
 
             // Unconditional absolute jump
             0xc3 => self.jp_d16(),
             0xe9 => self.jp_hl(),
 
             // Conditional relative jump
-            0x20 => self.jr_nz_d8(),
-            0x30 => self.jr_nc_d8(),
-            0x28 => self.jr_z_d8(),
-            0x38 => self.jr_c_d8(),
+            0x20 | 0x30 | 0x28 | 0x38 => self.jr_cc_d8(reg2 - 4),
 
             // Unconditional relative jump
             0x18 => self.jr_d8(),
@@ -1354,10 +1286,7 @@ impl CPU {
             0x1f => self.rra(),
 
             // Arithmethic/logical operation on 16-bit register
-            0x09 => self.add_hl_r16(0),
-            0x19 => self.add_hl_r16(1),
-            0x29 => self.add_hl_r16(2),
-            0x39 => self.add_hl_r16(3),
+            0x09 | 0x19 | 0x29 | 0x39 => self.add_hl_r16(opcode >> 4),
             0xe8 => self.add_sp_d8(),
             0xf8 => self.ld_hl_sp_d8(),
 
@@ -1422,45 +1351,26 @@ impl CPU {
             0xfa => self.ld_a_ind_d16(),
 
             // INC, DEC r16
-            0x03 => self.inc_r16(0),
-            0x13 => self.inc_r16(1),
-            0x23 => self.inc_r16(2),
-            0x33 => self.inc_r16(3),
-            0x0b => self.dec_r16(0),
-            0x1b => self.dec_r16(1),
-            0x2b => self.dec_r16(2),
-            0x3b => self.dec_r16(3),
+            0x03 | 0x13 | 0x23 | 0x33 => self.inc_r16(opcode >> 4),
+            0x0b | 0x1b | 0x2b | 0x3b => self.dec_r16(opcode >> 4),
 
             // Unconditional call
             0xcd => self.call_d16(),
 
             // Conditional call
-            0xc4 => self.call_nz_d16(),
-            0xd4 => self.call_nc_d16(),
-            0xcc => self.call_z_d16(),
-            0xdc => self.call_c_d16(),
+            0xc4 | 0xd4 | 0xcc | 0xdc => self.call_cc_d16(reg2),
 
             // Unconditional ret
             0xc9 => self.ret(),
 
             // Conditional ret
-            0xc0 => self.ret_nz(),
-            0xd0 => self.ret_nc(),
-            0xc8 => self.ret_z(),
-            0xd8 => self.ret_c(),
+            0xc0 | 0xd0 | 0xc8 | 0xd8 => self.ret_cc(reg2),
 
             // RETI
             0xd9 => self.reti(),
 
             // RST
-            0xc7 => self.rst(0x00),
-            0xcf => self.rst(0x08),
-            0xd7 => self.rst(0x10),
-            0xdf => self.rst(0x18),
-            0xe7 => self.rst(0x20),
-            0xef => self.rst(0x28),
-            0xf7 => self.rst(0x30),
-            0xff => self.rst(0x38),
+            0xc7 | 0xcf | 0xd7 | 0xdf | 0xe7 | 0xef | 0xf7 | 0xff => self.rst(opcode - 0xc7),
 
             // DI, EI
             0xf3 => self.di(),

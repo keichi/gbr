@@ -68,16 +68,4 @@ impl MMU {
             _ => 0xff,
         }
     }
-
-    pub fn write16(&mut self, addr: u16, val: u16) {
-        self.write(addr, (val & 0xff) as u8);
-        self.write(addr.wrapping_add(1), (val >> 8 & 0xff) as u8);
-    }
-
-    pub fn read16(&self, addr: u16) -> u16 {
-        let lo = self.read(addr);
-        let hi = self.read(addr.wrapping_add(1));
-
-        (hi as u16) << 8 | lo as u16
-    }
 }
