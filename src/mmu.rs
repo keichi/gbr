@@ -26,6 +26,7 @@ impl MMU {
         }
     }
 
+    #[allow(dead_code)]
     pub fn load_boot_rom(&mut self, fname: &str) {
         let mut file = File::open(fname).unwrap();
         if file.read_to_end(&mut self.boot_rom).unwrap() != 0x100 {
