@@ -5,7 +5,9 @@ extern crate log;
 extern crate env_logger;
 
 mod cpu;
+mod io_device;
 mod mmu;
+mod timer;
 
 fn main() {
     env_logger::init();
@@ -30,7 +32,5 @@ fn main() {
 
     loop {
         cpu.step();
-        cpu.check_interrupt();
-        // cpu.dump();
     }
 }

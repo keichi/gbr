@@ -1,10 +1,10 @@
 use std::process;
 
-use mmu;
+use mmu::MMU;
 
 #[derive(Debug)]
 pub struct CPU {
-    mmu: mmu::MMU,
+    mmu: MMU,
     pc: u16,
     sp: u16,
     a: u8,
@@ -15,11 +15,12 @@ pub struct CPU {
     e: u8,
     h: u8,
     l: u8,
-    ime: bool
+    ime: bool,
+    tick: u8, // This is T-cycle (4.194304 MHz), not M-cycle
 }
 
 impl CPU {
-    pub fn new(mmu: mmu::MMU) -> Self {
+    pub fn new(mmu: MMU) -> Self {
         CPU {
             mmu: mmu,
             pc: 0x100, // TODO skip boot ROM for now
@@ -32,7 +33,8 @@ impl CPU {
             e: 0,
             h: 0,
             l: 0,
-            ime: false
+            ime: false,
+            tick: 0,
         }
     }
 
@@ -163,7 +165,10 @@ impl CPU {
             3 => self.e,
             4 => self.h,
             5 => self.l,
-            6 => self.read_mem8(self.hl()),
+            6 => {
+                let hl = self.hl();
+                self.read_mem8(hl)
+            }
             7 => self.a,
             _ => panic!("Invalid operand index: {}", idx),
         }
@@ -193,7 +198,8 @@ impl CPU {
 
     /// Read 8-bit immediate from memory
     fn read_d8(&mut self) -> u8 {
-        let imm = self.read_mem8(self.pc);
+        let pc = self.pc;
+        let imm = self.read_mem8(pc);
         self.pc = self.pc.wrapping_add(1);
 
         imm
@@ -201,7 +207,8 @@ impl CPU {
 
     /// Read 16-bit immediate from memory
     fn read_d16(&mut self) -> u16 {
-        let imm = self.read_mem16(self.pc);
+        let pc = self.pc;
+        let imm = self.read_mem16(pc);
         self.pc = self.pc.wrapping_add(2);
 
         imm
@@ -231,11 +238,17 @@ impl CPU {
     /// Write 8-bit value to memory
     fn write_mem8(&mut self, addr: u16, val: u8) {
         self.mmu.write(addr, val);
+
+        self.tick += 4;
     }
 
     /// Read 8-bit value from memory
-    fn read_mem8(&self, addr: u16) -> u8 {
-        self.mmu.read(addr)
+    fn read_mem8(&mut self, addr: u16) -> u8 {
+        let ret = self.mmu.read(addr);
+
+        self.tick += 4;
+
+        ret
     }
 
     /// Write 16-bit value to memory
@@ -245,7 +258,7 @@ impl CPU {
     }
 
     /// Read 16-bit value from memory
-    fn read_mem16(&self, addr: u16) -> u16 {
+    fn read_mem16(&mut self, addr: u16) -> u16 {
         let lo = self.read_mem8(addr);
         let hi = self.read_mem8(addr.wrapping_add(1));
 
@@ -280,6 +293,8 @@ impl CPU {
     fn ld_sp_hl(&mut self) {
         debug!("LD SP, HL");
 
+        self.tick += 4;
+
         self.sp = self.hl();
     }
 
@@ -293,6 +308,8 @@ impl CPU {
         let half_carry = (hl & 0xfff) + (val & 0xfff) > 0xfff;
         let (res, carry) = hl.overflowing_add(val);
         self.set_hl(res);
+
+        self.tick += 4;
 
         self.set_f_n(false);
         self.set_f_h(half_carry);
@@ -320,6 +337,8 @@ impl CPU {
         debug!("ADD SP, {}", val);
 
         self.sp = self._add_sp(val);
+
+        self.tick += 8;
     }
 
     /// LD HL, SP+d8
@@ -327,6 +346,8 @@ impl CPU {
         let offset = self.read_d8() as i8;
 
         debug!("LD HL, SP{:+}", offset);
+
+        self.tick += 4;
 
         let res = self._add_sp(offset);
         self.set_hl(res);
@@ -686,13 +707,17 @@ impl CPU {
     fn ld_a_ind_bc(&mut self) {
         debug!("LD A, (BC)");
 
-        self.a = self.read_mem8(self.bc());
+        let bc = self.bc();
+
+        self.a = self.read_mem8(bc);
     }
 
     fn ld_a_ind_de(&mut self) {
         debug!("LD A, (DE)");
 
-        self.a = self.read_mem8(self.de());
+        let de = self.de();
+
+        self.a = self.read_mem8(de);
     }
 
     /// Test bit
@@ -851,6 +876,8 @@ impl CPU {
 
     fn _jp(&mut self, addr: u16) {
         self.pc = addr;
+
+        self.tick += 4;
     }
 
     fn jp_cc_d8(&mut self, cci: u8) {
@@ -869,7 +896,7 @@ impl CPU {
 
         debug!("JP 0x{:04x}", address);
 
-        self.pc = address;
+        self._jp(address);
     }
 
     /// Unconditional jump to HL
@@ -892,6 +919,8 @@ impl CPU {
 
     fn _jr(&mut self, offset: i8) {
         self.pc = self.pc.wrapping_add(offset as u16);
+
+        self.tick += 4;
     }
 
     /// Jump to pc+d8
@@ -900,6 +929,7 @@ impl CPU {
 
         debug!("JR {}", offset);
 
+        // TODO exit if we enter an infinite loop
         if offset == -2 {
             process::exit(0);
         }
@@ -995,6 +1025,8 @@ impl CPU {
         let sp = self.sp;
         let pc = self.pc;
 
+        self.tick += 4;
+
         self.write_mem16(sp, pc);
         self.pc = addr;
     }
@@ -1021,12 +1053,16 @@ impl CPU {
 
     fn rst(&mut self, addr: u8) {
         debug!("RST 0x{:02x}", addr);
+
         self._call(addr as u16);
     }
 
     fn _ret(&mut self) {
-        self.pc = self.read_mem16(self.sp);
+        let sp = self.sp;
+        self.pc = self.read_mem16(sp);
         self.sp = self.sp.wrapping_add(2);
+
+        self.tick += 4;
     }
 
     /// RET
@@ -1039,6 +1075,8 @@ impl CPU {
     /// RET CC
     fn ret_cc(&mut self, cci: u8) {
         debug!("RET {}", Self::cc_to_string(cci));
+
+        self.tick += 4;
 
         if self.cc(cci) {
             self._ret();
@@ -1053,6 +1091,8 @@ impl CPU {
         let val = self.bc();
         let sp = self.sp;
 
+        self.tick += 4;
+
         self.write_mem16(sp, val);
     }
 
@@ -1063,6 +1103,8 @@ impl CPU {
         self.sp = self.sp.wrapping_sub(2);
         let val = self.de();
         let sp = self.sp;
+
+        self.tick += 4;
 
         self.write_mem16(sp, val);
     }
@@ -1075,6 +1117,8 @@ impl CPU {
         let val = self.hl();
         let sp = self.sp;
 
+        self.tick += 4;
+
         self.write_mem16(sp, val);
     }
 
@@ -1086,6 +1130,8 @@ impl CPU {
         let val = self.af();
         let sp = self.sp;
 
+        self.tick += 4;
+
         self.write_mem16(sp, val);
     }
 
@@ -1093,7 +1139,8 @@ impl CPU {
     fn pop_bc(&mut self) {
         debug!("POP BC");
 
-        let val = self.read_mem16(self.sp);
+        let sp = self.sp;
+        let val = self.read_mem16(sp);
         self.set_bc(val);
         self.sp = self.sp.wrapping_add(2);
     }
@@ -1102,7 +1149,8 @@ impl CPU {
     fn pop_de(&mut self) {
         debug!("POP DE");
 
-        let val = self.read_mem16(self.sp);
+        let sp = self.sp;
+        let val = self.read_mem16(sp);
         self.set_de(val);
         self.sp = self.sp.wrapping_add(2);
     }
@@ -1111,7 +1159,8 @@ impl CPU {
     fn pop_hl(&mut self) {
         debug!("POP HL");
 
-        let val = self.read_mem16(self.sp);
+        let sp = self.sp;
+        let val = self.read_mem16(sp);
         self.set_hl(val);
         self.sp = self.sp.wrapping_add(2);
     }
@@ -1120,8 +1169,9 @@ impl CPU {
     fn pop_af(&mut self) {
         debug!("POP AF");
 
+        let sp = self.sp;
         // lower nibble of F is always zero
-        let val = self.read_mem16(self.sp) & 0xfff0;
+        let val = self.read_mem16(sp) & 0xfff0;
         self.set_af(val);
         self.sp = self.sp.wrapping_add(2);
     }
@@ -1159,6 +1209,8 @@ impl CPU {
 
         let val = self.read_r16(reg);
         self.write_r16(reg, val.wrapping_add(1));
+
+        self.tick += 4;
     }
 
     fn dec_r16(&mut self, reg: u8) {
@@ -1166,6 +1218,8 @@ impl CPU {
 
         let val = self.read_r16(reg);
         self.write_r16(reg, val.wrapping_sub(1));
+
+        self.tick += 4;
     }
 
     fn ld_ind_d16_a(&mut self) {
@@ -1231,6 +1285,8 @@ impl CPU {
     }
 
     pub fn step(&mut self) {
+        self.tick = 0;
+
         let opcode = self.read_d8();
         let reg = opcode & 7;
         let reg2 = opcode >> 3 & 7;
@@ -1380,9 +1436,8 @@ impl CPU {
             0xcb => self.prefix(),
             _ => panic!("Unimplemented opcode 0x{:x}", opcode),
         }
-    }
 
-    pub fn check_interrupt(&mut self) {
+        self.mmu.update(self.tick);
     }
 
     #[allow(dead_code)]
@@ -1391,5 +1446,6 @@ impl CPU {
         println!("PC: 0x{:04x}  SP: 0x{:04x}", self.pc, self.sp);
         println!("AF: 0x{:04x}  BC: 0x{:04x}", self.af(), self.bc());
         println!("DE: 0x{:04x}  HL: 0x{:04x}", self.de(), self.hl());
+        println!("T:  {}", self.tick);
     }
 }

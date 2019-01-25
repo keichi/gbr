@@ -13,3 +13,4 @@ Blargg's test ROMs
 - [x] 09-op r,r.gb
 - [x] 10-bit ops.gb
 - [x] 11-op a,(hl).gb
+- [x] instr_timing.gb
