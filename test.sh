@@ -8,3 +8,4 @@
 ./target/debug/rgb "09-op r,r.gb"
 ./target/debug/rgb "10-bit ops.gb"
 ./target/debug/rgb "11-op a,(hl).gb"
+./target/debug/rgb "instr_timing.gb"

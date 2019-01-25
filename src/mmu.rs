@@ -53,6 +53,8 @@ impl MMU {
         match addr {
             // RAM
             0xc000...0xdfff => self.ram[(addr & 0x1fff) as usize] = val,
+            // Echo RAM
+            0xe000...0xfdff => self.ram[(addr - 0x2000) as usize] = val,
             // Serial Interface
             0xff01 => self.print_char(val),
             // Timer
@@ -74,6 +76,8 @@ impl MMU {
             0x0000...0x7fff => self.rom[(addr & 0x7fff) as usize],
             // RAM
             0xc000...0xdfff => self.ram[(addr & 0x1fff) as usize],
+            // Echo RAM
+            0xe000...0xfdff => self.ram[(addr - 0x2000) as usize],
             // Timer
             0xff04...0xff07 => self.timer.read(addr),
             // Interrupt
