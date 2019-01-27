@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{self, Read, Write};
 
 use io_device::IODevice;
+use ppu::PPU;
 use timer::Timer;
 
 #[derive(Debug)]
@@ -11,6 +12,7 @@ pub struct MMU {
     ram: Vec<u8>,
     hram: Vec<u8>,
     timer: Timer,
+    ppu: PPU,
     pub int_flag: u8,
     pub int_enable: u8,
 }
@@ -22,6 +24,7 @@ impl MMU {
             rom: Vec::new(),
             ram: vec![0; 0x2000],
             hram: vec![0; 0x7f],
+            ppu: PPU::new(),
             timer: Timer::new(),
             int_flag: 0,
             int_enable: 0,
@@ -62,6 +65,8 @@ impl MMU {
             0xff01 => self.print_char(val),
             // Timer
             0xff04...0xff07 => self.timer.write(addr, val),
+            // PPU
+            0xff40...0xff4b => self.ppu.write(addr, val),
             // Interrupt flag
             0xff0f => self.int_flag = val,
             // HRAM
@@ -85,6 +90,8 @@ impl MMU {
             0xe000...0xfdff => self.ram[(addr - 0x2000) as usize],
             // Timer
             0xff04...0xff07 => self.timer.read(addr),
+            // PPU
+            0xff40...0xff4b => self.ppu.read(addr),
             // Interrupt flag
             0xff0f => self.int_flag,
             // HRAM

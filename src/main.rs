@@ -7,6 +7,7 @@ extern crate env_logger;
 mod cpu;
 mod io_device;
 mod mmu;
+mod ppu;
 mod timer;
 
 fn main() {
