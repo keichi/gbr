@@ -11,7 +11,8 @@ pub struct MMU {
     ram: Vec<u8>,
     hram: Vec<u8>,
     timer: Timer,
-    int_flag: u8,
+    pub int_flag: u8,
+    pub int_enable: u8,
 }
 
 impl MMU {
@@ -23,6 +24,7 @@ impl MMU {
             hram: vec![0; 0x7f],
             timer: Timer::new(),
             int_flag: 0,
+            int_enable: 0,
         }
     }
 
@@ -60,10 +62,12 @@ impl MMU {
             0xff01 => self.print_char(val),
             // Timer
             0xff04...0xff07 => self.timer.write(addr, val),
-            // Interrupt
+            // Interrupt flag
             0xff0f => self.int_flag = val,
             // HRAM
             0xff80...0xfffe => self.hram[(addr & 0x7f) as usize] = val,
+            // Interrupt enable
+            0xffff => self.int_enable = val,
             _ => (),
         }
     }
@@ -81,18 +85,21 @@ impl MMU {
             0xe000...0xfdff => self.ram[(addr - 0x2000) as usize],
             // Timer
             0xff04...0xff07 => self.timer.read(addr),
-            // Interrupt
+            // Interrupt flag
             0xff0f => self.int_flag,
             // HRAM
             0xff80...0xfffe => self.hram[(addr & 0x7f) as usize],
+            // Interrupt enable
+            0xffff => self.int_enable,
             _ => 0xff,
         }
     }
 
     pub fn update(&mut self, tick: u8) {
-        if self.timer.update(tick) {
-            // println!("Timer interrupt request");
-            self.int_flag |= 4;
+        self.timer.update(tick);
+
+        if self.timer.irq_pending() {
+            self.int_flag |= 0x4;
         }
     }
 }

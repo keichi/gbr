@@ -17,6 +17,7 @@ pub struct CPU {
     l: u8,
     ime: bool,
     tick: u8, // This is T-cycle (4.194304 MHz), not M-cycle
+    halted: bool,
 }
 
 impl CPU {
@@ -35,6 +36,7 @@ impl CPU {
             l: 0,
             ime: false,
             tick: 0,
+            halted: false,
         }
     }
 
@@ -1284,9 +1286,69 @@ impl CPU {
         }
     }
 
+    /// HALT
+    fn halt(&mut self) {
+        debug!("HALT");
+
+        if self.ime {
+            self.halted = true;
+        }
+    }
+
     pub fn step(&mut self) {
         self.tick = 0;
 
+        if self.halted {
+            self.tick += 4;
+        } else {
+            self.fetch_and_exec();
+        }
+
+        self.mmu.update(self.tick);
+
+        if self.ime {
+            self.tick = 0;
+            self.check_irqs();
+            self.mmu.update(self.tick);
+        }
+    }
+
+    fn check_irqs(&mut self) {
+        // Bit 0 has the highest priority
+        for i in 0..5 {
+            let irq = self.mmu.int_flag & (1 << i) > 0;
+            let ie = self.mmu.int_enable & (1 << i) > 0;
+
+            // If interrupt is requested and enabled
+            if irq && ie {
+                self.call_isr(i);
+                break;
+            }
+        }
+    }
+
+    fn call_isr(&mut self, id: u8) {
+        // Reset corresponding bit in IF
+        self.mmu.int_flag &= !(1 << id);
+        // Clear IME (disable any further interrupts)
+        self.ime = false;
+        self.halted = false;
+
+        let isr: u16 = match id {
+            0 => 0x40,
+            1 => 0x48,
+            2 => 0x50,
+            3 => 0x80,
+            4 => 0x70,
+            _ => panic!("Invalid IRQ id {}", id),
+        };
+
+        self.tick += 8;
+
+        self._call(isr);
+    }
+
+    fn fetch_and_exec(&mut self) {
         let opcode = self.read_d8();
         let reg = opcode & 7;
         let reg2 = opcode >> 3 & 7;
@@ -1434,10 +1496,12 @@ impl CPU {
 
             // CB prefixed
             0xcb => self.prefix(),
+
+            // HALT
+            0x76 => self.halt(),
+
             _ => panic!("Unimplemented opcode 0x{:x}", opcode),
         }
-
-        self.mmu.update(self.tick);
     }
 
     #[allow(dead_code)]

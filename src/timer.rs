@@ -12,6 +12,8 @@ pub struct Timer {
     tac: u8,
     /// Internal 16-bit counter
     counter: u16,
+    /// Interrupt request
+    irq: bool,
 }
 
 impl Timer {
@@ -22,6 +24,7 @@ impl Timer {
             tma: 0,
             tac: 0,
             counter: 0,
+            irq: false,
         }
     }
 }
@@ -55,9 +58,7 @@ impl IODevice for Timer {
         }
     }
 
-    fn update(&mut self, tick: u8) -> bool {
-        let mut irq = false;
-
+    fn update(&mut self, tick: u8) {
         let counter_prev = self.counter;
 
         self.counter = self.counter.wrapping_add(tick as u16);
@@ -80,13 +81,15 @@ impl IODevice for Timer {
 
                 if overflow {
                     self.tima = self.tma + (diff as u8 - 1);
-                    irq = true;
+                    self.irq = true;
                 } else {
                     self.tima = res;
                 }
             }
         }
+    }
 
-        irq
+    fn irq_pending(&self) -> bool {
+        self.irq
     }
 }

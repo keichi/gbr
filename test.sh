@@ -1,4 +1,5 @@
 ./target/debug/rgb "test_roms/01-special.gb"
+./target/debug/rgb "test_roms/02-interrupts.gb"
 ./target/debug/rgb "test_roms/03-op sp,hl.gb"
 ./target/debug/rgb "test_roms/04-op r,imm.gb"
 ./target/debug/rgb "test_roms/05-op rp.gb"
