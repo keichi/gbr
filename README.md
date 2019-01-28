@@ -1,6 +1,6 @@
 # rgb
 
-[![CircleCI](https://circleci.com/gh/keichi/rgb.svg?style=svg)](https://circleci.com/gh/keichi/rgb)
+[![CircleCI](https://circleci.com/gh/keichi/rgb.svg?style=svg&circle-token=f88657411bfbd48f0542eb9bc8866cafc4bc8658)](https://circleci.com/gh/keichi/rgb)
 
 Blargg's test ROMs
 
