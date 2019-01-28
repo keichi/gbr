@@ -24,7 +24,7 @@ impl CPU {
     pub fn new(mmu: MMU) -> Self {
         CPU {
             mmu: mmu,
-            pc: 0x100, // TODO skip boot ROM for now
+            pc: 0,
             sp: 0,
             a: 0,
             f: 0,

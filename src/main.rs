@@ -16,6 +16,7 @@ fn main() {
     let mut mmu = mmu::MMU::new();
 
     let args: Vec<String> = env::args().collect();
+    mmu.load_boot_rom("dmg_boot.bin");
     mmu.load_rom(&args[1]);
 
     let mut cpu = cpu::CPU::new(mmu);
