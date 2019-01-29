@@ -72,7 +72,11 @@ impl MMU {
             // PPU
             0xff40...0xff4b => self.ppu.write(addr, val),
             // Disable Boot ROM
-            0xff50 => self.boot_rom_enable = false,
+            0xff50 => {
+                self.boot_rom_enable = false;
+                self.ppu.dump_frame_buffer();
+                panic!("trap")
+            }
             // HRAM
             0xff80...0xfffe => self.hram[(addr & 0x7f) as usize] = val,
             // Interrupt enable
