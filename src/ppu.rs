@@ -94,7 +94,13 @@ impl PPU {
             let lo_bit = tile.0 >> (7 - offset_x) & 1;
             let hi_bit = tile.1 >> (7 - offset_x) & 1;
 
-            let color = hi_bit << 1 | lo_bit;
+            let color_no = hi_bit << 1 | lo_bit;
+            let color = match (self.bgp >> (color_no << 1)) & 0x3 {
+                0 => 0xff,
+                1 => 0xaa,
+                2 => 0x55,
+                3 | _ => 0x00,
+            };
 
             self.frame_buffer[(i as usize) + (self.ly as usize) * 160] = color;
 
@@ -114,6 +120,7 @@ impl PPU {
         }
     }
 
+    #[allow(dead_code)]
     pub fn dump_frame_buffer(&mut self) {
         let mut buffer = File::create("foo.pgm").unwrap();
 
@@ -128,6 +135,14 @@ impl PPU {
 
             writeln!(buffer).unwrap();
         }
+    }
+
+    pub fn frame_buffer(&self) -> &[u8] {
+        &self.frame_buffer
+    }
+
+    pub fn mode(&self) -> u8 {
+        self.stat & 0x3
     }
 }
 
@@ -155,7 +170,7 @@ impl IODevice for PPU {
             0xff4a => self.wy = val,
             0xff4b => self.wx = val,
 
-            _ => panic!("invalid address: 0x{:04x}", addr),
+            _ => panic!("Invalid address: 0x{:04x}", addr),
         }
     }
 
@@ -184,7 +199,7 @@ impl IODevice for PPU {
             0xff4a => self.wy,
             0xff4b => self.wx,
 
-            _ => panic!("invalid address: 0x{:04x}", addr),
+            _ => panic!("Invalid address: 0x{:04x}", addr),
         }
     }
 
@@ -225,7 +240,7 @@ impl IODevice for PPU {
                 }
             }
             // V-Blank (4560 clocks or 10 lines)
-            1 => {
+            1 | _ => {
                 if self.counter >= 456 {
                     self.counter -= 456;
                     self.ly += 1;
@@ -237,7 +252,6 @@ impl IODevice for PPU {
                     }
                 }
             }
-            _ => panic!("Wrong"),
         }
     }
 

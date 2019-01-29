@@ -1,9 +1,7 @@
-use std::process;
-
 use mmu::MMU;
 
 pub struct CPU {
-    mmu: MMU,
+    pub mmu: MMU,
     pc: u16,
     sp: u16,
     a: u8,
@@ -929,11 +927,6 @@ impl CPU {
         let offset = self.read_d8() as i8;
 
         debug!("JR {}", offset);
-
-        // TODO exit if we enter an infinite loop
-        if offset == -2 {
-            process::exit(0);
-        }
 
         self._jr(offset);
     }

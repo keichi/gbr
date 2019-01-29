@@ -6,3 +6,4 @@ authors = ["Keichi Takahashi <keichi.t@me.com>"]
 [dependencies]
 log = "0.4"
 env_logger = "0.6"
+sdl2 = "0.32.1"

@@ -11,7 +11,7 @@ pub struct MMU {
     ram: [u8; 0x2000],
     hram: [u8; 0x7f],
     timer: Timer,
-    ppu: PPU,
+    pub ppu: PPU,
     pub int_flag: u8,
     pub int_enable: u8,
     boot_rom_enable: bool,
@@ -73,8 +73,6 @@ impl MMU {
             // Disable Boot ROM
             0xff50 => {
                 self.boot_rom_enable = false;
-                self.ppu.dump_frame_buffer();
-                panic!("trap")
             }
             // HRAM
             0xff80...0xfffe => self.hram[(addr & 0x7f) as usize] = val,
