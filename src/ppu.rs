@@ -66,32 +66,51 @@ impl PPU {
         }
     }
 
+    fn fetch_tile(&self, tile_x: u8, tile_y: u8, offset_y: u8) -> (u8, u8) {
+        // Fetch tile index from tile map
+        let tile_map_addr = 0x1800 | (tile_x as u16 + ((tile_y as u16) << 5));
+        let tile_idx = self.vram[tile_map_addr as usize];
+
+        // Fetch tile data
+        let tile_data_addr = ((tile_idx as u16) << 4) + (offset_y << 1) as u16;
+        let tile0 = self.vram[tile_data_addr as usize];
+        let tile1 = self.vram[(tile_data_addr + 1) as usize];
+
+        (tile0, tile1)
+    }
+
     fn render(&mut self) {
-        // TODO don't fetch tile index and data for every pixel
-        // TODO Recheck type of every variable
+        // Tile coordinate
+        let mut tile_x = self.scx >> 3;
+        let tile_y = self.scy.wrapping_add(self.ly) >> 3;
+
+        // Offset of current pixel within tile
+        let mut offset_x = self.scx & 0x7;
+        let offset_y = self.scy.wrapping_add(self.ly) & 0x7;
+
+        let mut tile = self.fetch_tile(tile_x, tile_y, offset_y);
+
         for i in 0..160 {
-            let tile_x = (self.scx.wrapping_add(i) >> 3) as u16;
-            let tile_y = (self.scy.wrapping_add(self.ly) >> 3) as u16;
-
-            // Fetch tile index from tile map
-            let tile_map_addr = 0x1800 | (tile_x + (tile_y << 5)) as u16;
-            let tile_idx = self.vram[tile_map_addr as usize];
-
-            // Offset of current pixel within tile
-            let offset_x = self.scx.wrapping_add(i) & 0x7;
-            let offset_y = self.scy.wrapping_add(self.ly) & 0x7;
-
-            // Fetch tile data
-            let tile_data_addr = ((tile_idx as u16) << 4) + (offset_y << 1) as u16;
-            let tile0 = self.vram[tile_data_addr as usize];
-            let tile1 = self.vram[(tile_data_addr + 1) as usize];
-
-            let lo_bit = tile0 >> (7 - offset_x) & 1;
-            let hi_bit = tile1 >> (7 - offset_x) & 1;
+            let lo_bit = tile.0 >> (7 - offset_x) & 1;
+            let hi_bit = tile.1 >> (7 - offset_x) & 1;
 
             let color = hi_bit << 1 | lo_bit;
 
             self.frame_buffer[(i as usize) + (self.ly as usize) * 160] = color;
+
+            offset_x += 1;
+
+            // Move to next tile
+            if offset_x >= 8 {
+                offset_x = 0;
+                tile_x += 1;
+
+                if tile_x >= 32 {
+                    tile_x = 0;
+                }
+
+                tile = self.fetch_tile(tile_x, tile_y, offset_y);
+            }
         }
     }
 
