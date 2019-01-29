@@ -3,9 +3,8 @@ use std::io::Write;
 
 use io_device::IODevice;
 
-#[derive(Debug)]
 pub struct PPU {
-    vram: Vec<u8>,
+    vram: [u8; 0x2000],
     /// LCD Control
     lcdc: u8,
     /// Status
@@ -35,7 +34,7 @@ pub struct PPU {
     /// Elapsed clocks in current mode
     counter: u16,
     /// Frame buffer
-    frame_buffer: Vec<u8>,
+    frame_buffer: [u8; 160 * 144],
 }
 
 impl PPU {
@@ -48,7 +47,7 @@ impl PPU {
 
     pub fn new() -> Self {
         PPU {
-            vram: vec![0; 0x2000],
+            vram: [0; 0x2000],
             lcdc: 0,
             stat: 0,
             scy: 0,
@@ -63,7 +62,7 @@ impl PPU {
             wx: 0,
             irq: false,
             counter: 0,
-            frame_buffer: vec![0; 160 * 144],
+            frame_buffer: [0; 160 * 144],
         }
     }
 

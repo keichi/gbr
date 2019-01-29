@@ -5,12 +5,11 @@ use io_device::IODevice;
 use ppu::PPU;
 use timer::Timer;
 
-#[derive(Debug)]
 pub struct MMU {
     boot_rom: Vec<u8>,
     rom: Vec<u8>,
-    ram: Vec<u8>,
-    hram: Vec<u8>,
+    ram: [u8; 0x2000],
+    hram: [u8; 0x7f],
     timer: Timer,
     ppu: PPU,
     pub int_flag: u8,
@@ -23,8 +22,8 @@ impl MMU {
         MMU {
             boot_rom: Vec::new(),
             rom: Vec::new(),
-            ram: vec![0; 0x2000],
-            hram: vec![0; 0x7f],
+            ram: [0; 0x2000],
+            hram: [0; 0x7f],
             ppu: PPU::new(),
             timer: Timer::new(),
             int_flag: 0,
@@ -74,8 +73,8 @@ impl MMU {
             // Disable Boot ROM
             0xff50 => {
                 self.boot_rom_enable = false;
-                self.ppu.dump_frame_buffer();
-                panic!("trap")
+                // self.ppu.dump_frame_buffer();
+                // panic!("trap")
             }
             // HRAM
             0xff80...0xfffe => self.hram[(addr & 0x7f) as usize] = val,

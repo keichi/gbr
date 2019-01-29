@@ -2,7 +2,6 @@ use std::process;
 
 use mmu::MMU;
 
-#[derive(Debug)]
 pub struct CPU {
     mmu: MMU,
     pc: u16,
