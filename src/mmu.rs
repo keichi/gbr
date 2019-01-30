@@ -109,17 +109,22 @@ impl MMU {
     }
 
     pub fn update(&mut self, tick: u8) {
-        self.timer.update(tick);
         self.ppu.update(tick);
-
-        if self.timer.irq {
-            self.int_flag |= 0x4;
-            self.timer.irq = false;
-        }
+        self.timer.update(tick);
 
         if self.ppu.irq_vblank {
             self.int_flag |= 0x1;
             self.ppu.irq_vblank = false;
+        }
+
+        if self.ppu.irq_lcdc {
+            self.int_flag |= 0x2;
+            self.ppu.irq_lcdc = false;
+        }
+
+        if self.timer.irq {
+            self.int_flag |= 0x4;
+            self.timer.irq = false;
         }
     }
 }

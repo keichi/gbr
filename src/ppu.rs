@@ -28,6 +28,8 @@ pub struct PPU {
     wx: u8,
     /// V-Blank interrupt request
     pub irq_vblank: bool,
+    /// LCDC interrupt request
+    pub irq_lcdc: bool,
     /// Elapsed clocks in current mode
     counter: u16,
     /// Frame buffer
@@ -58,6 +60,7 @@ impl PPU {
             wy: 0,
             wx: 0,
             irq_vblank: false,
+            irq_lcdc: false,
             counter: 0,
             frame_buffer: [0; 160 * 144],
         }
@@ -131,6 +134,30 @@ impl PPU {
 
     pub fn mode(&self) -> u8 {
         self.stat & 0x3
+    }
+
+    fn update_lyc_interrupt(&mut self) {
+        if self.ly == self.lyc {
+            self.stat |= 0x4;
+
+            if self.stat & 0x40 > 0 {
+                self.irq_lcdc = true;
+            }
+        } else {
+            self.stat &= !0x4;
+        }
+    }
+
+    fn update_lcdc_interrupt(&mut self) {
+        match self.stat & 0x3 {
+            // H-Blank interrupt
+            0 if self.lcdc & 0x8 > 0 => self.irq_lcdc = true,
+            // V-Blank interrupt
+            1 if self.lcdc & 0x10 > 0 => self.irq_lcdc = true,
+            // OAM Search interrupt
+            2 if self.lcdc & 0x20 > 0 => self.irq_lcdc = true,
+            _ => (),
+        }
     }
 }
 
@@ -210,6 +237,7 @@ impl IODevice for PPU {
                     self.counter -= 172;
                     // Transition to H-Blank mode
                     self.stat = self.stat & 0xf8;
+                    self.update_lcdc_interrupt();
                 }
             }
             // H-Blank (204 clocks)
@@ -218,13 +246,17 @@ impl IODevice for PPU {
                     self.counter -= 204;
                     self.ly += 1;
 
+                    self.update_lyc_interrupt();
+
                     if self.ly >= 144 {
                         // Transition to V-Blank mode
                         self.stat = (self.stat & 0xf8) | 1;
+                        self.irq_vblank = true;
+                        self.update_lcdc_interrupt();
                     } else {
                         // Transition to OAM Search mode
                         self.stat = (self.stat & 0xf8) | 2;
-                        self.irq_vblank = true;
+                        self.update_lcdc_interrupt();
                     }
                 }
             }
@@ -234,10 +266,13 @@ impl IODevice for PPU {
                     self.counter -= 456;
                     self.ly += 1;
 
+                    self.update_lyc_interrupt();
+
                     if self.ly >= 154 {
                         // Transition to OAM Search mode
                         self.stat = (self.stat & 0xf8) | 2;
                         self.ly = 0;
+                        self.update_lcdc_interrupt();
                     }
                 }
             }
