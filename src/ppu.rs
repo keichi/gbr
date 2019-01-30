@@ -39,9 +39,9 @@ pub struct PPU {
 
 impl PPU {
     // VRAM map
-    // 0x0000-0x07ff: Tile data block #1
-    // 0x0800-0x0fff: Tile data block #2
-    // 0x1000-0x17ff: Tile data block #3
+    // 0x0000-0x07ff: Tile set #1
+    // 0x0800-0x0fff: Tile set #2
+    // 0x1000-0x17ff: Tile set #3
     // 0x1800-0x1bff: Tile map #1
     // 0x1c00-0x1fff: Tile map #2
 
@@ -71,15 +71,23 @@ impl PPU {
         let tile_map_addr = 0x1800 | (tile_x as u16 + ((tile_y as u16) << 5));
         let tile_idx = self.vram[tile_map_addr as usize];
 
-        // Fetch tile data
-        let tile_data_addr = ((tile_idx as u16) << 4) + (offset_y << 1) as u16;
+        // Fetch tile data from tile set
+        let tile_data_base = if self.lcdc & 0x4 > 0 {
+            // Use tile set #2 (0x0800-0x0fff) and #3 (0x1000-0x17ff)
+            (0x0800 as u16).wrapping_add(((tile_idx as i8 as i16) << 4) as u16)
+        } else {
+            // Use tile set #1 (0x0000-0x07ff) and #2 (0x0800-0x0fff)
+            (tile_idx as u16) << 4
+        };
+        let tile_data_addr = tile_data_base + (offset_y << 1) as u16;
+
         let tile0 = self.vram[tile_data_addr as usize];
         let tile1 = self.vram[(tile_data_addr + 1) as usize];
 
         (tile0, tile1)
     }
 
-    fn render(&mut self) {
+    fn render_scanline(&mut self) {
         // Tile coordinate
         let mut tile_x = self.scx >> 3;
         let tile_y = self.scy.wrapping_add(self.ly) >> 3;
@@ -106,7 +114,7 @@ impl PPU {
 
             offset_x += 1;
 
-            // Move to next tile
+            // Move on to next tile
             if offset_x >= 8 {
                 offset_x = 0;
                 tile_x += 1;
@@ -213,7 +221,7 @@ impl IODevice for PPU {
                     self.counter -= 80;
                     // Transition to Pixel Transfer mode
                     self.stat = (self.stat & 0xf8) | 3;
-                    self.render();
+                    self.render_scanline();
                 }
             }
             // Pixel Transfer (172 clocks)
