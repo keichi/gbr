@@ -149,14 +149,14 @@ impl PPU {
     }
 
     fn update_lcdc_interrupt(&mut self) {
-        match self.stat & 0x3 {
+        self.irq_lcdc = match self.stat & 0x3 {
             // H-Blank interrupt
-            0 if self.lcdc & 0x8 > 0 => self.irq_lcdc = true,
+            0 if self.lcdc & 0x8 > 0 => true,
             // V-Blank interrupt
-            1 if self.lcdc & 0x10 > 0 => self.irq_lcdc = true,
+            1 if self.lcdc & 0x10 > 0 => true,
             // OAM Search interrupt
-            2 if self.lcdc & 0x20 > 0 => self.irq_lcdc = true,
-            _ => (),
+            2 if self.lcdc & 0x20 > 0 => true,
+            _ => false,
         }
     }
 }
@@ -178,7 +178,6 @@ impl IODevice for PPU {
             0xff43 => self.scx = val,
             0xff44 => self.ly = 0,
             0xff45 => self.lyc = val,
-            0xff46 => self.dma = val,
             0xff47 => self.bgp = val,
             0xff48 => self.obp0 = val,
             0xff49 => self.obp1 = val,

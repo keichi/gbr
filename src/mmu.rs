@@ -54,6 +54,16 @@ impl MMU {
         write!(handle, "{}", val as char).unwrap();
     }
 
+    fn do_dma(&mut self, val: u8) {
+        let src_base = (val as u16) << 8;
+        let dst_base = 0xfe00;
+
+        for i in 0..0xa0 {
+            let tmp = self.read(src_base | i);
+            self.write(dst_base | i, tmp);
+        }
+    }
+
     pub fn write(&mut self, addr: u16, val: u8) {
         match addr {
             // VRAM
@@ -69,7 +79,9 @@ impl MMU {
             // Interrupt flag
             0xff0f => self.int_flag = val,
             // PPU
-            0xff40...0xff4b => self.ppu.write(addr, val),
+            0xff40...0xff45 | 0xff47...0xff4b => self.ppu.write(addr, val),
+            // OAM DMA
+            0xff46 => self.do_dma(val),
             // Disable Boot ROM
             0xff50 => {
                 self.boot_rom_enable = false;
@@ -99,7 +111,7 @@ impl MMU {
             // Interrupt flag
             0xff0f => self.int_flag,
             // PPU
-            0xff40...0xff4b => self.ppu.read(addr),
+            0xff40...0xff45 | 0xff47...0xff4b => self.ppu.read(addr),
             // HRAM
             0xff80...0xfffe => self.hram[(addr & 0x7f) as usize],
             // Interrupt enable
