@@ -72,6 +72,8 @@ impl MMU {
             0xc000...0xdfff => self.ram[(addr & 0x1fff) as usize] = val,
             // Echo RAM
             0xe000...0xfdff => self.ram[(addr - 0x2000) as usize] = val,
+            // OAM
+            0xfe00...0xfe9f => self.ppu.write(addr, val),
             // Serial Interface
             0xff01 => self.print_char(val),
             // Timer
@@ -106,6 +108,8 @@ impl MMU {
             0xc000...0xdfff => self.ram[(addr & 0x1fff) as usize],
             // Echo RAM
             0xe000...0xfdff => self.ram[(addr - 0x2000) as usize],
+            // OAM
+            0xfe00...0xfe9f => self.ppu.read(addr),
             // Timer
             0xff04...0xff07 => self.timer.read(addr),
             // Interrupt flag

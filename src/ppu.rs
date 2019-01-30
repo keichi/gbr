@@ -2,6 +2,7 @@ use io_device::IODevice;
 
 pub struct PPU {
     vram: [u8; 0x2000],
+    oam: [u8; 0xa0],
     /// LCD Control
     lcdc: u8,
     /// Status
@@ -47,6 +48,7 @@ impl PPU {
     pub fn new() -> Self {
         PPU {
             vram: [0; 0x2000],
+            oam: [0; 0xa0],
             lcdc: 0,
             stat: 0,
             scy: 0,
@@ -171,6 +173,15 @@ impl IODevice for PPU {
                     self.vram[(addr & 0x1fff) as usize] = val
                 }
             }
+
+            // OAM
+            0xfe00...0xfe9f => {
+                // OAM is only accessible during H-Blank and V-Blank
+                if self.stat & 0x3 == 0 && self.stat & 0x3 == 1 {
+                    self.oam[(addr & 0x00ff) as usize] = val
+                }
+            }
+
             // IO registers
             0xff40 => self.lcdc = val,
             0xff41 => self.stat = (val & 0xf8) | (self.stat & 0x3),
@@ -199,6 +210,17 @@ impl IODevice for PPU {
                     0xff
                 }
             }
+
+            // OAM
+            0xfe00...0xfe9f => {
+                // OAM is only accessible during H-Blank and V-Blank
+                if self.stat & 0x3 == 0 && self.stat & 0x3 == 1 {
+                    self.oam[(addr & 0x00ff) as usize]
+                } else {
+                    0xff
+                }
+            }
+
             // IO registers
             0xff40 => self.lcdc,
             0xff41 => self.stat,
