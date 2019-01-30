@@ -13,7 +13,7 @@ pub struct Timer {
     /// Internal 16-bit counter
     counter: u16,
     /// Interrupt request
-    irq: bool,
+    pub irq: bool,
 }
 
 impl Timer {
@@ -87,9 +87,5 @@ impl IODevice for Timer {
                 }
             }
         }
-    }
-
-    fn irq_pending(&self) -> bool {
-        self.irq
     }
 }

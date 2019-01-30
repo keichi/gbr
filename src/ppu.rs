@@ -29,8 +29,8 @@ pub struct PPU {
     wy: u8,
     /// Window X Position minus 7
     wx: u8,
-    /// Interrupt request
-    irq: bool,
+    /// V-Blank interrupt request
+    pub irq_vblank: bool,
     /// Elapsed clocks in current mode
     counter: u16,
     /// Frame buffer
@@ -60,7 +60,7 @@ impl PPU {
             obp1: 0,
             wy: 0,
             wx: 0,
-            irq: false,
+            irq_vblank: false,
             counter: 0,
             frame_buffer: [0; 160 * 144],
         }
@@ -236,6 +236,7 @@ impl IODevice for PPU {
                     } else {
                         // Transition to OAM Search mode
                         self.stat = (self.stat & 0xf8) | 2;
+                        self.irq_vblank = true;
                     }
                 }
             }
@@ -253,9 +254,5 @@ impl IODevice for PPU {
                 }
             }
         }
-    }
-
-    fn irq_pending(&self) -> bool {
-        self.irq
     }
 }

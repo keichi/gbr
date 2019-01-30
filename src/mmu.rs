@@ -112,8 +112,14 @@ impl MMU {
         self.timer.update(tick);
         self.ppu.update(tick);
 
-        if self.timer.irq_pending() {
+        if self.timer.irq {
             self.int_flag |= 0x4;
+            self.timer.irq = false;
+        }
+
+        if self.ppu.irq_vblank {
+            self.int_flag |= 0x1;
+            self.ppu.irq_vblank = false;
         }
     }
 }
