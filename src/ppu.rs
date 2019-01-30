@@ -89,6 +89,15 @@ impl PPU {
         (tile0, tile1)
     }
 
+    fn map_color(&self, color_no: u8, palette: u8) -> u8 {
+        match (palette >> (color_no << 1)) & 0x3 {
+            0 => 0xff,
+            1 => 0xaa,
+            2 => 0x55,
+            3 | _ => 0x00,
+        }
+    }
+
     fn render_scanline(&mut self) {
         // Tile coordinate
         let mut tile_x = self.scx >> 3;
@@ -105,12 +114,7 @@ impl PPU {
             let hi_bit = tile.1 >> (7 - offset_x) & 1;
 
             let color_no = hi_bit << 1 | lo_bit;
-            let color = match (self.bgp >> (color_no << 1)) & 0x3 {
-                0 => 0xff,
-                1 => 0xaa,
-                2 => 0x55,
-                3 | _ => 0x00,
-            };
+            let color = self.map_color(color_no, self.bgp);
 
             self.frame_buffer[(i as usize) + (self.ly as usize) * 160] = color;
 
