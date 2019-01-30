@@ -1,6 +1,3 @@
-use std::fs::File;
-use std::io::Write;
-
 use io_device::IODevice;
 
 pub struct PPU {
@@ -125,23 +122,6 @@ impl PPU {
 
                 tile = self.fetch_tile(tile_x, tile_y, offset_y);
             }
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn dump_frame_buffer(&mut self) {
-        let mut buffer = File::create("foo.pgm").unwrap();
-
-        writeln!(buffer, "P2").unwrap();
-        writeln!(buffer, "160 144").unwrap();
-        writeln!(buffer, "1").unwrap();
-
-        for y in 0..144 {
-            for x in 0..160 {
-                write!(buffer, "{} ", self.frame_buffer[x + y * 160]).unwrap();
-            }
-
-            writeln!(buffer).unwrap();
         }
     }
 
