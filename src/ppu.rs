@@ -98,7 +98,7 @@ impl PPU {
         }
     }
 
-    fn render_scanline(&mut self) {
+    fn render_bg(&mut self) {
         // Tile coordinate
         let mut tile_x = self.scx >> 3;
         let tile_y = self.scy.wrapping_add(self.ly) >> 3;
@@ -109,14 +109,14 @@ impl PPU {
 
         let mut tile = self.fetch_tile(tile_x, tile_y, offset_y);
 
-        for i in 0..160 {
+        for x in 0..160 {
             let lo_bit = tile.0 >> (7 - offset_x) & 1;
             let hi_bit = tile.1 >> (7 - offset_x) & 1;
 
             let color_no = hi_bit << 1 | lo_bit;
             let color = self.map_color(color_no, self.bgp);
 
-            self.frame_buffer[(i as usize) + (self.ly as usize) * 160] = color;
+            self.frame_buffer[(x as usize) + (self.ly as usize) * 160] = color;
 
             offset_x += 1;
 
@@ -131,6 +131,78 @@ impl PPU {
 
                 tile = self.fetch_tile(tile_x, tile_y, offset_y);
             }
+        }
+    }
+
+    fn fetch_sprite(&self, tile_idx: u8, offset_y: u8) -> (u8, u8) {
+        // Fetch tile data from tile set
+        let tile_data_base = (tile_idx as u16) << 4;
+        let tile_data_addr = tile_data_base + (offset_y << 1) as u16;
+
+        let tile0 = self.vram[tile_data_addr as usize];
+        let tile1 = self.vram[(tile_data_addr + 1) as usize];
+
+        (tile0, tile1)
+    }
+
+    fn render_sprites(&mut self) {
+        // TODO 10 sprites per scanline
+        // TODO Flip x and y
+        // TODO sprite and background priority
+
+        for i in 0..40 {
+            // Parse OAM entry
+            let entry_addr = i << 2;
+            let sprite_y = self.oam[entry_addr];
+            let sprite_x = self.oam[entry_addr + 1];
+            let tile_no = self.oam[entry_addr + 2];
+            let flags = self.oam[entry_addr + 3];
+
+            let obj_prio = flags & 0x80 > 0;
+            let flip_y = flags & 0x40 > 0;
+            let flip_x = flags & 0x20 > 0;
+            let palette = if flags & 0x10 > 0 {
+                self.obp1
+            } else {
+                self.obp0
+            };
+
+            // Check if sprite is visible
+            if sprite_y < self.ly + 8 || sprite_y > self.ly + 16 {
+                continue;
+            }
+            if sprite_x == 0 || sprite_x > 160 + 8 - 1 {
+                continue;
+            }
+
+            let tile = self.fetch_sprite(tile_no, self.ly + 16 - sprite_y);
+
+            for offset_x in 0..8 {
+                let lo_bit = tile.0 >> (7 - offset_x) & 1;
+                let hi_bit = tile.1 >> (7 - offset_x) & 1;
+
+                let color_no = hi_bit << 1 | lo_bit;
+                if color_no == 0 {
+                    continue;
+                }
+                let color = self.map_color(color_no, palette);
+
+                if offset_x + sprite_x < 8 {
+                    continue;
+                }
+
+                let x = offset_x + sprite_x - 8;
+                self.frame_buffer[(x as usize) + (self.ly as usize) * 160] = color;
+            }
+        }
+    }
+
+    fn render_scanline(&mut self) {
+        if self.lcdc & 0x1 > 0 {
+            self.render_bg();
+        }
+        if self.lcdc & 0x2 > 0 {
+            self.render_sprites();
         }
     }
 
@@ -181,8 +253,8 @@ impl IODevice for PPU {
             // OAM
             0xfe00...0xfe9f => {
                 // OAM is only accessible during H-Blank and V-Blank
-                if self.stat & 0x3 == 0 && self.stat & 0x3 == 1 {
-                    self.oam[(addr & 0x00ff) as usize] = val
+                if self.stat & 0x3 == 0 || self.stat & 0x3 == 1 || self.lcdc & 0x80 == 0 {
+                    self.oam[(addr & 0x00ff) as usize] = val;
                 }
             }
 
@@ -218,7 +290,7 @@ impl IODevice for PPU {
             // OAM
             0xfe00...0xfe9f => {
                 // OAM is only accessible during H-Blank and V-Blank
-                if self.stat & 0x3 == 0 && self.stat & 0x3 == 1 {
+                if self.stat & 0x3 == 0 || self.stat & 0x3 == 1 || self.lcdc & 0x80 == 0 {
                     self.oam[(addr & 0x00ff) as usize]
                 } else {
                     0xff

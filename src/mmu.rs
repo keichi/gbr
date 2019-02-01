@@ -11,6 +11,7 @@ pub struct MMU {
     ram: [u8; 0x2000],
     hram: [u8; 0x7f],
     timer: Timer,
+    // TODO should this be public?
     pub ppu: PPU,
     pub int_flag: u8,
     pub int_enable: u8,
@@ -54,7 +55,12 @@ impl MMU {
         write!(handle, "{}", val as char).unwrap();
     }
 
+    // TODO OAM DMA Timing
     fn do_dma(&mut self, val: u8) {
+        if val < 0x80 || 0xdf < val {
+            panic!("Invalid DMA source address")
+        }
+
         let src_base = (val as u16) << 8;
         let dst_base = 0xfe00;
 
