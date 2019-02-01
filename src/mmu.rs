@@ -48,13 +48,6 @@ impl MMU {
         }
     }
 
-    fn print_char(&self, val: u8) {
-        let stdout = io::stdout();
-        let mut handle = stdout.lock();
-
-        write!(handle, "{}", val as char).unwrap();
-    }
-
     // TODO OAM DMA Timing
     fn do_dma(&mut self, val: u8) {
         if val < 0x80 || 0xdf < val {
@@ -80,8 +73,6 @@ impl MMU {
             0xe000...0xfdff => self.ram[(addr - 0x2000) as usize] = val,
             // OAM
             0xfe00...0xfe9f => self.ppu.write(addr, val),
-            // Serial Interface
-            0xff01 => self.print_char(val),
             // Timer
             0xff04...0xff07 => self.timer.write(addr, val),
             // Interrupt flag
