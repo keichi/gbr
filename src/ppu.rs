@@ -70,8 +70,8 @@ impl PPU {
 
     fn fetch_tile(&self, tile_x: u8, tile_y: u8, offset_y: u8) -> (u8, u8) {
         // Fetch tile index from tile map
-        // TODO Tile map addressing modes
-        let tile_map_addr = 0x1800 | (tile_x as u16 + ((tile_y as u16) << 5));
+        let tile_map_base = if self.lcdc & 0x8 > 0 { 0x1c00 } else { 0x1800 };
+        let tile_map_addr = tile_map_base | (tile_x as u16 + ((tile_y as u16) << 5));
         let tile_idx = self.vram[tile_map_addr as usize];
 
         // Fetch tile data from tile set
