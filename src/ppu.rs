@@ -75,17 +75,17 @@ impl PPU {
         let tile_idx = self.vram[tile_map_addr as usize];
 
         // Fetch tile data from tile set
-        let tile_data_base = if self.lcdc & 0x10 > 0 {
+        let tile_data_addr = if self.lcdc & 0x10 > 0 {
             // Use tile set #1 (0x0000-0x07ff) and #2 (0x0800-0x0fff)
             (tile_idx as u16) << 4
         } else {
             // Use tile set #2 (0x0800-0x0fff) and #3 (0x1000-0x17ff)
             (0x1000 as u16).wrapping_add(((tile_idx as i8 as i16) << 4) as u16)
         };
-        let tile_data_addr = tile_data_base + (offset_y << 1) as u16;
+        let row_addr = tile_data_addr + (offset_y << 1) as u16;
 
-        let tile0 = self.vram[tile_data_addr as usize];
-        let tile1 = self.vram[(tile_data_addr + 1) as usize];
+        let tile0 = self.vram[row_addr as usize];
+        let tile1 = self.vram[(row_addr + 1) as usize];
 
         (tile0, tile1)
     }
@@ -137,11 +137,11 @@ impl PPU {
 
     fn fetch_sprite(&self, tile_idx: u8, offset_y: u8) -> (u8, u8) {
         // Fetch tile data from tile set
-        let tile_data_base = (tile_idx as u16) << 4;
-        let tile_data_addr = tile_data_base + (offset_y << 1) as u16;
+        let tile_data_addr = (tile_idx as u16) << 4;
+        let row_addr = tile_data_addr + (offset_y << 1) as u16;
 
-        let tile0 = self.vram[tile_data_addr as usize];
-        let tile1 = self.vram[(tile_data_addr + 1) as usize];
+        let tile0 = self.vram[row_addr as usize];
+        let tile1 = self.vram[(row_addr + 1) as usize];
 
         (tile0, tile1)
     }
@@ -150,6 +150,8 @@ impl PPU {
         // TODO 10 sprites per scanline
         // TODO Flip x and y
         // TODO sprite and background priority
+
+        let mut n_sprites = 0;
 
         for i in 0..40 {
             // Parse OAM entry
@@ -168,10 +170,18 @@ impl PPU {
                 self.obp0
             };
 
-            // Check if sprite is visible
+            // Check if sprite is visible on this scanline
             if sprite_y <= self.ly + 8 || sprite_y > self.ly + 16 {
                 continue;
             }
+
+            // Up to 10 sprites can be rendered on one scanline
+            n_sprites += 1;
+            if n_sprites > 10 {
+                break;
+            }
+
+            // Check if sprite is within the screen
             if sprite_x == 0 || sprite_x > 160 + 8 - 1 {
                 continue;
             }
