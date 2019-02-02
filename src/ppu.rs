@@ -70,16 +70,17 @@ impl PPU {
 
     fn fetch_tile(&self, tile_x: u8, tile_y: u8, offset_y: u8) -> (u8, u8) {
         // Fetch tile index from tile map
+        // TODO Tile map addressing modes
         let tile_map_addr = 0x1800 | (tile_x as u16 + ((tile_y as u16) << 5));
         let tile_idx = self.vram[tile_map_addr as usize];
 
         // Fetch tile data from tile set
-        let tile_data_base = if self.lcdc & 0x4 > 0 {
-            // Use tile set #2 (0x0800-0x0fff) and #3 (0x1000-0x17ff)
-            (0x0800 as u16).wrapping_add(((tile_idx as i8 as i16) << 4) as u16)
-        } else {
+        let tile_data_base = if self.lcdc & 0x10 > 0 {
             // Use tile set #1 (0x0000-0x07ff) and #2 (0x0800-0x0fff)
             (tile_idx as u16) << 4
+        } else {
+            // Use tile set #2 (0x0800-0x0fff) and #3 (0x1000-0x17ff)
+            (0x1000 as u16).wrapping_add(((tile_idx as i8 as i16) << 4) as u16)
         };
         let tile_data_addr = tile_data_base + (offset_y << 1) as u16;
 
@@ -168,7 +169,7 @@ impl PPU {
             };
 
             // Check if sprite is visible
-            if sprite_y < self.ly + 8 || sprite_y > self.ly + 16 {
+            if sprite_y <= self.ly + 8 || sprite_y > self.ly + 16 {
                 continue;
             }
             if sprite_x == 0 || sprite_x > 160 + 8 - 1 {
