@@ -1,7 +1,8 @@
 use std::fs::File;
-use std::io::{self, Read, Write};
+use std::io::Read;
 
 use io_device::IODevice;
+use joypad::Joypad;
 use ppu::PPU;
 use timer::Timer;
 
@@ -10,6 +11,7 @@ pub struct MMU {
     rom: Vec<u8>,
     ram: [u8; 0x2000],
     hram: [u8; 0x7f],
+    pub joypad: Joypad,
     timer: Timer,
     // TODO should this be public?
     pub ppu: PPU,
@@ -25,6 +27,7 @@ impl MMU {
             rom: Vec::new(),
             ram: [0; 0x2000],
             hram: [0; 0x7f],
+            joypad: Joypad::new(),
             ppu: PPU::new(),
             timer: Timer::new(),
             int_flag: 0,
@@ -73,6 +76,8 @@ impl MMU {
             0xe000...0xfdff => self.ram[(addr - 0x2000) as usize] = val,
             // OAM
             0xfe00...0xfe9f => self.ppu.write(addr, val),
+            // Joypad
+            0xff00 => self.joypad.write(addr, val),
             // Timer
             0xff04...0xff07 => self.timer.write(addr, val),
             // Interrupt flag
@@ -107,6 +112,8 @@ impl MMU {
             0xe000...0xfdff => self.ram[(addr - 0x2000) as usize],
             // OAM
             0xfe00...0xfe9f => self.ppu.read(addr),
+            // Joypad
+            0xff00 => self.joypad.read(addr),
             // Timer
             0xff04...0xff07 => self.timer.read(addr),
             // Interrupt flag

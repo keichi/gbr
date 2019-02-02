@@ -11,9 +11,32 @@ use sdl2::pixels::PixelFormatEnum;
 
 mod cpu;
 mod io_device;
+mod joypad;
 mod mmu;
 mod ppu;
 mod timer;
+
+fn translate_keycode(key: Keycode) -> Option<joypad::Key> {
+    match key {
+        Keycode::Down => Some(joypad::Key::Down),
+        Keycode::Up => Some(joypad::Key::Up),
+        Keycode::Left => Some(joypad::Key::Left),
+        Keycode::Right => Some(joypad::Key::Right),
+        Keycode::Return => Some(joypad::Key::Start),
+        Keycode::RShift => Some(joypad::Key::Select),
+        Keycode::S => Some(joypad::Key::A),
+        Keycode::A => Some(joypad::Key::B),
+        _ => None,
+    }
+}
+
+fn handle_keydown(cpu: &mut cpu::CPU, key: Keycode) {
+    translate_keycode(key).map(|k| cpu.mmu.joypad.keydown(k));
+}
+
+fn handle_keyup(cpu: &mut cpu::CPU, key: Keycode) {
+    translate_keycode(key).map(|k| cpu.mmu.joypad.keyup(k));
+}
 
 fn main() {
     env_logger::init();
@@ -77,6 +100,14 @@ fn main() {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => break 'running,
+                Event::KeyDown {
+                    keycode: Some(keycode),
+                    ..
+                } => handle_keydown(&mut cpu, keycode),
+                Event::KeyUp {
+                    keycode: Some(keycode),
+                    ..
+                } => handle_keyup(&mut cpu, keycode),
                 _ => {}
             }
         }

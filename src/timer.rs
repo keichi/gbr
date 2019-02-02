@@ -1,6 +1,5 @@
 use io_device::IODevice;
 
-#[derive(Debug)]
 pub struct Timer {
     /// Divider
     div: u8,
