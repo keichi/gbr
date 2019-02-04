@@ -1,8 +1,6 @@
 use io_device::IODevice;
 
 pub struct Timer {
-    /// Divider
-    div: u8,
     /// Timer counter
     tima: u8,
     /// Timer modulo
@@ -18,7 +16,6 @@ pub struct Timer {
 impl Timer {
     pub fn new() -> Self {
         Timer {
-            div: 0,
             tima: 0,
             tma: 0,
             tac: 0,
