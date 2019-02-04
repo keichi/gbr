@@ -147,9 +147,8 @@ impl PPU {
     }
 
     fn render_sprites(&mut self) {
-        // TODO 10 sprites per scanline
-        // TODO Flip x and y
         // TODO sprite and background priority
+        // TODO 8x16 sprites
 
         let mut n_sprites = 0;
 
@@ -186,11 +185,17 @@ impl PPU {
                 continue;
             }
 
-            let tile = self.fetch_sprite(tile_no, self.ly + 16 - sprite_y);
+            let offset_y = if flip_y {
+                7 - (self.ly + 16 - sprite_y)
+            } else {
+                self.ly + 16 - sprite_y
+            };
+            let tile = self.fetch_sprite(tile_no, offset_y);
 
             for offset_x in 0..8 {
-                let lo_bit = tile.0 >> (7 - offset_x) & 1;
-                let hi_bit = tile.1 >> (7 - offset_x) & 1;
+                let bitpos = if flip_x { offset_x } else { 7 - offset_x };
+                let lo_bit = tile.0 >> bitpos & 1;
+                let hi_bit = tile.1 >> bitpos & 1;
 
                 let color_no = hi_bit << 1 | lo_bit;
                 if color_no == 0 {
