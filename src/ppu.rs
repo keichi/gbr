@@ -90,6 +90,28 @@ impl PPU {
         (tile0, tile1)
     }
 
+    fn fetch_window_tile(&self, tile_x: u8, tile_y: u8, offset_y: u8) -> (u8, u8) {
+        // Fetch tile index from tile map
+        let tile_map_base = if self.lcdc & 0x40 > 0 { 0x1c00 } else { 0x1800 };
+        let tile_map_addr = tile_map_base | (tile_x as u16 + ((tile_y as u16) << 5));
+        let tile_idx = self.vram[tile_map_addr as usize];
+
+        // Fetch tile data from tile set
+        let tile_data_addr = if self.lcdc & 0x10 > 0 {
+            // Use tile set #1 (0x0000-0x07ff) and #2 (0x0800-0x0fff)
+            (tile_idx as u16) << 4
+        } else {
+            // Use tile set #2 (0x0800-0x0fff) and #3 (0x1000-0x17ff)
+            (0x1000 as u16).wrapping_add(((tile_idx as i8 as i16) << 4) as u16)
+        };
+        let row_addr = tile_data_addr + (offset_y << 1) as u16;
+
+        let tile0 = self.vram[row_addr as usize];
+        let tile1 = self.vram[(row_addr + 1) as usize];
+
+        (tile0, tile1)
+    }
+
     fn map_color(&self, color_no: u8, palette: u8) -> u8 {
         match (palette >> (color_no << 1)) & 0x3 {
             0 => 0xff,
@@ -102,15 +124,29 @@ impl PPU {
     fn render_bg(&mut self) {
         // Tile coordinate
         let mut tile_x = self.scx >> 3;
-        let tile_y = self.scy.wrapping_add(self.ly) >> 3;
+        let mut tile_y = self.scy.wrapping_add(self.ly) >> 3;
 
         // Offset of current pixel within tile
         let mut offset_x = self.scx & 0x7;
-        let offset_y = self.scy.wrapping_add(self.ly) & 0x7;
+        let mut offset_y = self.scy.wrapping_add(self.ly) & 0x7;
 
         let mut tile = self.fetch_tile(tile_x, tile_y, offset_y);
 
+        let mut window = false;
+
         for x in 0..160 {
+            // Check if window is enabled
+            if self.lcdc & 0x20 > 0 {
+                if self.wy <= self.ly && self.wx == x + 8 {
+                    tile_x = 0;
+                    tile_y = (self.ly - self.wy) >> 3;
+                    offset_x = 0;
+                    offset_y = (self.ly - self.wy) & 0x7;
+                    tile = self.fetch_window_tile(tile_x, tile_y, offset_y);
+                    window = true;
+                }
+            }
+
             let lo_bit = tile.0 >> (7 - offset_x) & 1;
             let hi_bit = tile.1 >> (7 - offset_x) & 1;
 
@@ -130,7 +166,11 @@ impl PPU {
                     tile_x = 0;
                 }
 
-                tile = self.fetch_tile(tile_x, tile_y, offset_y);
+                if window {
+                    tile = self.fetch_window_tile(tile_x, tile_y, offset_y);
+                } else {
+                    tile = self.fetch_tile(tile_x, tile_y, offset_y);
+                }
             }
         }
     }
