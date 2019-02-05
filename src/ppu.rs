@@ -243,7 +243,7 @@ impl PPU {
     }
 
     fn update_lcdc_interrupt(&mut self) {
-        self.irq_lcdc = match self.stat & 0x3 {
+        self.irq_lcdc |= match self.stat & 0x3 {
             // H-Blank interrupt
             0 if self.stat & 0x8 > 0 => true,
             // V-Blank interrupt
