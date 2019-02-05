@@ -233,6 +233,16 @@ impl PPU {
             let tile = self.fetch_sprite(tile_no, offset_y);
 
             for offset_x in 0..8 {
+                if offset_x + sprite_x < 8 {
+                    continue;
+                }
+
+                let x = offset_x + sprite_x - 8;
+
+                if x >= 160 {
+                    break;
+                }
+
                 let bitpos = if flip_x { offset_x } else { 7 - offset_x };
                 let lo_bit = tile.0 >> bitpos & 1;
                 let hi_bit = tile.1 >> bitpos & 1;
@@ -243,11 +253,6 @@ impl PPU {
                 }
                 let color = self.map_color(color_no, palette);
 
-                if offset_x + sprite_x < 8 {
-                    continue;
-                }
-
-                let x = offset_x + sprite_x - 8;
                 self.frame_buffer[(x as usize) + (self.ly as usize) * 160] = color;
             }
         }
