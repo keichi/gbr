@@ -73,7 +73,7 @@ impl MMU {
             // RAM
             0xc000...0xdfff => self.ram[(addr & 0x1fff) as usize] = val,
             // Echo RAM
-            0xe000...0xfdff => self.ram[(addr - 0x2000) as usize] = val,
+            0xe000...0xfdff => self.ram[((addr - 0x2000) & 0x1fff) as usize] = val,
             // OAM
             0xfe00...0xfe9f => self.ppu.write(addr, val),
             // Joypad
@@ -109,7 +109,7 @@ impl MMU {
             // RAM
             0xc000...0xdfff => self.ram[(addr & 0x1fff) as usize],
             // Echo RAM
-            0xe000...0xfdff => self.ram[(addr - 0x2000) as usize],
+            0xe000...0xfdff => self.ram[((addr - 0x2000) & 0x1fff) as usize],
             // OAM
             0xfe00...0xfe9f => self.ppu.read(addr),
             // Joypad
