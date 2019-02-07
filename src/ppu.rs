@@ -275,7 +275,8 @@ impl PPU {
         self.stat & 0x3
     }
 
-    fn update_lyc_interrupt(&mut self) {
+    fn update_lcdc_interrupt(&mut self) {
+        // LYC=LY coincidence interrupt
         if self.ly == self.lyc {
             self.stat |= 0x4;
 
@@ -285,18 +286,17 @@ impl PPU {
         } else {
             self.stat &= !0x4;
         }
-    }
 
-    fn update_lcdc_interrupt(&mut self) {
-        self.irq_lcdc |= match self.stat & 0x3 {
+        // Mode interrupts
+        match self.stat & 0x3 {
             // H-Blank interrupt
-            0 if self.stat & 0x8 > 0 => true,
+            0 if self.stat & 0x8 > 0 => self.irq_lcdc = true,
             // V-Blank interrupt
-            1 if self.stat & 0x10 > 0 => true,
+            1 if self.stat & 0x10 > 0 => self.irq_lcdc = true,
             // OAM Search interrupt
-            2 if self.stat & 0x20 > 0 => true,
-            _ => false,
-        };
+            2 if self.stat & 0x20 > 0 => self.irq_lcdc = true,
+            _ => (),
+        }
     }
 }
 
@@ -404,18 +404,16 @@ impl IODevice for PPU {
                     self.counter -= 204;
                     self.ly += 1;
 
-                    self.update_lyc_interrupt();
-
                     if self.ly >= 144 {
                         // Transition to V-Blank mode
                         self.stat = (self.stat & 0xf8) | 1;
                         self.irq_vblank = true;
-                        self.update_lcdc_interrupt();
                     } else {
                         // Transition to OAM Search mode
                         self.stat = (self.stat & 0xf8) | 2;
-                        self.update_lcdc_interrupt();
                     }
+
+                    self.update_lcdc_interrupt();
                 }
             }
             // V-Blank (4560 clocks or 10 lines)
@@ -424,16 +422,13 @@ impl IODevice for PPU {
                     self.counter -= 456;
                     self.ly += 1;
 
-                    self.update_lyc_interrupt();
-
                     if self.ly >= 154 {
                         // Transition to OAM Search mode
                         self.stat = (self.stat & 0xf8) | 2;
                         self.ly = 0;
-
-                        self.update_lyc_interrupt();
-                        self.update_lcdc_interrupt();
                     }
+
+                    self.update_lcdc_interrupt();
                 }
             }
         }
