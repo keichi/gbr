@@ -145,7 +145,7 @@ impl PPU {
         for x in 0..160 {
             // Check if window is enabled
             if self.lcdc & 0x20 > 0 {
-                if self.wy <= self.ly && self.wx == x + 8 {
+                if self.wy <= self.ly && self.wx == x + 7 {
                     tile_x = 0;
                     tile_y = (self.ly - self.wy) >> 3;
                     offset_x = 0;
