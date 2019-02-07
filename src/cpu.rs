@@ -21,7 +21,7 @@ impl CPU {
     pub fn new(mmu: MMU) -> Self {
         CPU {
             mmu: mmu,
-            pc: 0,
+            pc: 0x100,
             sp: 0,
             a: 0,
             f: 0,

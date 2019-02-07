@@ -32,7 +32,7 @@ impl MMU {
             timer: Timer::new(),
             int_flag: 0,
             int_enable: 0,
-            boot_rom_enable: true,
+            boot_rom_enable: false,
         }
     }
 
