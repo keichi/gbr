@@ -38,6 +38,8 @@ impl Joypad {
             Key::B => self.key_state &= !0x02,
             Key::A => self.key_state &= !0x01,
         }
+
+        self.irq = true;
     }
 
     pub fn keyup(&mut self, key: Key) {
