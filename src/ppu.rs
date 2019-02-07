@@ -68,19 +68,14 @@ impl PPU {
         }
     }
 
-    fn fetch_tile(&self, tile_x: u8, tile_y: u8, offset_y: u8) -> (u8, u8) {
-        // Fetch tile index from tile map
-        let tile_map_base = if self.lcdc & 0x8 > 0 { 0x1c00 } else { 0x1800 };
-        let tile_map_addr = tile_map_base | (tile_x as u16 + ((tile_y as u16) << 5));
-        let tile_idx = self.vram[tile_map_addr as usize];
-
+    fn fetch_tile(&self, tile_no: u8, offset_y: u8, tile_data_sel: bool) -> (u8, u8) {
         // Fetch tile data from tile set
-        let tile_data_addr = if self.lcdc & 0x10 > 0 {
+        let tile_data_addr = if tile_data_sel {
             // Use tile set #1 (0x0000-0x07ff) and #2 (0x0800-0x0fff)
-            (tile_idx as u16) << 4
+            (tile_no as u16) << 4
         } else {
             // Use tile set #2 (0x0800-0x0fff) and #3 (0x1000-0x17ff)
-            (0x1000 as u16).wrapping_add(((tile_idx as i8 as i16) << 4) as u16)
+            (0x1000 as u16).wrapping_add(((tile_no as i8 as i16) << 4) as u16)
         };
         let row_addr = tile_data_addr + (offset_y << 1) as u16;
 
@@ -90,26 +85,32 @@ impl PPU {
         (tile0, tile1)
     }
 
+    fn fetch_bg_window_tile(
+        &self,
+        tile_x: u8,
+        tile_y: u8,
+        offset_y: u8,
+        tile_map_base: u16,
+    ) -> (u8, u8) {
+        // Fetch tile index from tile map
+        let tile_map_addr = tile_map_base | ((tile_x & 0x1f) as u16 + ((tile_y as u16) << 5));
+        let tile_no = self.vram[tile_map_addr as usize];
+
+        self.fetch_tile(tile_no, offset_y, self.lcdc & 0x10 > 0)
+    }
+
+    fn fetch_bg_tile(&self, tile_x: u8, tile_y: u8, offset_y: u8) -> (u8, u8) {
+        // Fetch tile index from tile map
+        let tile_map_base = if self.lcdc & 0x8 > 0 { 0x1c00 } else { 0x1800 };
+
+        self.fetch_bg_window_tile(tile_x, tile_y, offset_y, tile_map_base)
+    }
+
     fn fetch_window_tile(&self, tile_x: u8, tile_y: u8, offset_y: u8) -> (u8, u8) {
         // Fetch tile index from tile map
         let tile_map_base = if self.lcdc & 0x40 > 0 { 0x1c00 } else { 0x1800 };
-        let tile_map_addr = tile_map_base | (tile_x as u16 + ((tile_y as u16) << 5));
-        let tile_idx = self.vram[tile_map_addr as usize];
 
-        // Fetch tile data from tile set
-        let tile_data_addr = if self.lcdc & 0x10 > 0 {
-            // Use tile set #1 (0x0000-0x07ff) and #2 (0x0800-0x0fff)
-            (tile_idx as u16) << 4
-        } else {
-            // Use tile set #2 (0x0800-0x0fff) and #3 (0x1000-0x17ff)
-            (0x1000 as u16).wrapping_add(((tile_idx as i8 as i16) << 4) as u16)
-        };
-        let row_addr = tile_data_addr + (offset_y << 1) as u16;
-
-        let tile0 = self.vram[row_addr as usize];
-        let tile1 = self.vram[(row_addr + 1) as usize];
-
-        (tile0, tile1)
+        self.fetch_bg_window_tile(tile_x, tile_y, offset_y, tile_map_base)
     }
 
     fn map_color(&self, color_no: u8, palette: u8) -> u8 {
@@ -121,6 +122,13 @@ impl PPU {
         }
     }
 
+    fn get_color_no(&self, tile: (u8, u8), bitpos: u8) -> u8 {
+        let lo_bit = tile.0 >> bitpos & 1;
+        let hi_bit = tile.1 >> bitpos & 1;
+
+        hi_bit << 1 | lo_bit
+    }
+
     fn render_bg(&mut self) {
         // Tile coordinate
         let mut tile_x = self.scx >> 3;
@@ -130,7 +138,7 @@ impl PPU {
         let mut offset_x = self.scx & 0x7;
         let mut offset_y = self.scy.wrapping_add(self.ly) & 0x7;
 
-        let mut tile = self.fetch_tile(tile_x, tile_y, offset_y);
+        let mut tile = self.fetch_bg_tile(tile_x, tile_y, offset_y);
 
         let mut window = false;
 
@@ -147,10 +155,7 @@ impl PPU {
                 }
             }
 
-            let lo_bit = tile.0 >> (7 - offset_x) & 1;
-            let hi_bit = tile.1 >> (7 - offset_x) & 1;
-
-            let color_no = hi_bit << 1 | lo_bit;
+            let color_no = self.get_color_no(tile, 7 - offset_x);
             let color = self.map_color(color_no, self.bgp);
 
             self.frame_buffer[(x as usize) + (self.ly as usize) * 160] = color;
@@ -162,28 +167,13 @@ impl PPU {
                 offset_x = 0;
                 tile_x += 1;
 
-                if tile_x >= 32 {
-                    tile_x = 0;
-                }
-
                 if window {
                     tile = self.fetch_window_tile(tile_x, tile_y, offset_y);
                 } else {
-                    tile = self.fetch_tile(tile_x, tile_y, offset_y);
+                    tile = self.fetch_bg_tile(tile_x, tile_y, offset_y);
                 }
             }
         }
-    }
-
-    fn fetch_sprite(&self, tile_idx: u8, offset_y: u8) -> (u8, u8) {
-        // Fetch tile data from tile set
-        let tile_data_addr = (tile_idx as u16) << 4;
-        let row_addr = tile_data_addr + (offset_y << 1) as u16;
-
-        let tile0 = self.vram[row_addr as usize];
-        let tile1 = self.vram[(row_addr + 1) as usize];
-
-        (tile0, tile1)
     }
 
     fn render_sprites(&mut self) {
@@ -230,7 +220,7 @@ impl PPU {
             } else {
                 self.ly + 16 - sprite_y
             };
-            let tile = self.fetch_sprite(tile_no, offset_y);
+            let tile = self.fetch_tile(tile_no, offset_y, true);
 
             for offset_x in 0..8 {
                 if offset_x + sprite_x < 8 {
@@ -244,10 +234,7 @@ impl PPU {
                 }
 
                 let bitpos = if flip_x { offset_x } else { 7 - offset_x };
-                let lo_bit = tile.0 >> bitpos & 1;
-                let hi_bit = tile.1 >> bitpos & 1;
-
-                let color_no = hi_bit << 1 | lo_bit;
+                let color_no = self.get_color_no(tile, bitpos);
                 if color_no == 0 {
                     continue;
                 }
