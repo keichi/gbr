@@ -258,10 +258,6 @@ impl PPU {
         &self.frame_buffer
     }
 
-    pub fn mode(&self) -> u8 {
-        self.stat & 0x3
-    }
-
     fn update_lcdc_interrupt(&mut self) {
         // LYC=LY coincidence interrupt
         if self.ly == self.lyc {

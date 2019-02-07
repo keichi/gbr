@@ -1287,7 +1287,9 @@ impl CPU {
         }
     }
 
-    pub fn step(&mut self) {
+    pub fn step(&mut self) -> u8 {
+        let mut total_tick = 0;
+
         self.tick = 0;
 
         if self.halted {
@@ -1296,13 +1298,19 @@ impl CPU {
             self.fetch_and_exec();
         }
 
+        total_tick += self.tick;
+
         self.mmu.update(self.tick);
 
         if self.ime {
             self.tick = 0;
             self.check_irqs();
             self.mmu.update(self.tick);
+
+            total_tick += self.tick;
         }
+
+        total_tick
     }
 
     fn check_irqs(&mut self) {

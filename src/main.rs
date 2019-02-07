@@ -5,6 +5,9 @@ extern crate log;
 extern crate env_logger;
 extern crate sdl2;
 
+use std::thread;
+use std::time;
+
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
@@ -67,8 +70,12 @@ fn main() {
     let mut cpu = cpu::CPU::new(mmu);
 
     'running: loop {
-        while cpu.mmu.ppu.mode() != 1 {
-            cpu.step();
+        let now = time::Instant::now();
+        let mut elapsed_tick: u32 = 0;
+
+        // Emulate one frame
+        while elapsed_tick < 456 * (144 + 10) {
+            elapsed_tick += cpu.step() as u32;
         }
 
         texture
@@ -107,12 +114,15 @@ fn main() {
                     keycode: Some(keycode),
                     ..
                 } => handle_keyup(&mut cpu, keycode),
-                _ => {}
+                _ => (),
             }
         }
 
-        while cpu.mmu.ppu.mode() == 1 {
-            cpu.step();
+        let wait = time::Duration::from_micros(1000000 / 60);
+        let elapsed = now.elapsed();
+
+        if wait > elapsed {
+            thread::sleep(wait - elapsed);
         }
     }
 }
