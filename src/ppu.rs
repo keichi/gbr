@@ -49,8 +49,8 @@ impl PPU {
         PPU {
             vram: [0; 0x2000],
             oam: [0; 0xa0],
-            lcdc: 0,
-            stat: 0,
+            lcdc: 0x80,
+            stat: 0x02,
             scy: 0,
             scx: 0,
             ly: 0,
@@ -289,7 +289,7 @@ impl IODevice for PPU {
             // VRAM
             0x8000...0x9fff => {
                 // VRAM is inaccessible during pixel transfer
-                if self.stat & 0x3 != 3 || self.lcdc & 0x80 == 0 {
+                if self.stat & 0x3 != 3 {
                     self.vram[(addr & 0x1fff) as usize] = val
                 }
             }
@@ -297,13 +297,23 @@ impl IODevice for PPU {
             // OAM
             0xfe00...0xfe9f => {
                 // OAM is only accessible during H-Blank and V-Blank
-                if self.stat & 0x3 == 0 || self.stat & 0x3 == 1 || self.lcdc & 0x80 == 0 {
+                if self.stat & 0x3 == 0 || self.stat & 0x3 == 1 {
                     self.oam[(addr & 0x00ff) as usize] = val;
                 }
             }
 
             // IO registers
-            0xff40 => self.lcdc = val,
+            0xff40 => {
+                if self.lcdc & 0x80 != val & 0x80 {
+                    self.ly = 0;
+                    self.counter = 0;
+
+                    let mode = if val & 0x80 > 0 { 2 } else { 0 };
+                    self.stat = (self.stat & 0xf8) | mode;
+                }
+
+                self.lcdc = val;
+            }
             0xff41 => self.stat = (val & 0xf8) | (self.stat & 0x3),
             0xff42 => self.scy = val,
             0xff43 => self.scx = val,
@@ -327,7 +337,7 @@ impl IODevice for PPU {
             // VRAM
             0x8000...0x9fff => {
                 // VRAM is inaccessible during pixel transfer
-                if self.stat & 0x3 != 3 || self.lcdc & 0x80 == 0 {
+                if self.stat & 0x3 != 3 {
                     self.vram[(addr & 0x1fff) as usize]
                 } else {
                     0xff
@@ -337,7 +347,7 @@ impl IODevice for PPU {
             // OAM
             0xfe00...0xfe9f => {
                 // OAM is only accessible during H-Blank and V-Blank
-                if self.stat & 0x3 == 0 || self.stat & 0x3 == 1 || self.lcdc & 0x80 == 0 {
+                if self.stat & 0x3 == 0 || self.stat & 0x3 == 1 {
                     self.oam[(addr & 0x00ff) as usize]
                 } else {
                     0xff
@@ -363,6 +373,10 @@ impl IODevice for PPU {
     }
 
     fn update(&mut self, tick: u8) {
+        if self.lcdc & 0x80 == 0 {
+            return;
+        }
+
         self.counter += tick as u16;
 
         match self.stat & 0x3 {
