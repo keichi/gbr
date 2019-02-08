@@ -12,6 +12,7 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
 
+mod catridge;
 mod cpu;
 mod io_device;
 mod joypad;
@@ -62,12 +63,9 @@ fn main() {
         .unwrap();
     let mut event_pump = sdl_context.event_pump().unwrap();
 
-    let mut mmu = mmu::MMU::new();
-
     let args: Vec<String> = env::args().collect();
-    mmu.load_rom(&args[1]);
 
-    let mut cpu = cpu::CPU::new(mmu);
+    let mut cpu = cpu::CPU::new(&args[1]);
 
     'running: loop {
         let now = time::Instant::now();

@@ -18,9 +18,9 @@ pub struct CPU {
 }
 
 impl CPU {
-    pub fn new(mmu: MMU) -> Self {
+    pub fn new(rom_name: &str) -> Self {
         CPU {
-            mmu: mmu,
+            mmu: MMU::new(rom_name),
             pc: 0x100,
             sp: 0,
             a: 0,

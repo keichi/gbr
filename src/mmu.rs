@@ -1,14 +1,11 @@
-use std::fs::File;
-use std::io::Read;
-
+use catridge::Catridge;
 use io_device::IODevice;
 use joypad::Joypad;
 use ppu::PPU;
 use timer::Timer;
 
 pub struct MMU {
-    boot_rom: Vec<u8>,
-    rom: Vec<u8>,
+    pub catridge: Catridge,
     ram: [u8; 0x2000],
     hram: [u8; 0x7f],
     pub joypad: Joypad,
@@ -17,14 +14,12 @@ pub struct MMU {
     pub ppu: PPU,
     pub int_flag: u8,
     pub int_enable: u8,
-    boot_rom_enable: bool,
 }
 
 impl MMU {
-    pub fn new() -> Self {
+    pub fn new(rom_name: &str) -> Self {
         MMU {
-            boot_rom: Vec::new(),
-            rom: Vec::new(),
+            catridge: Catridge::new(rom_name),
             ram: [0; 0x2000],
             hram: [0; 0x7f],
             joypad: Joypad::new(),
@@ -32,22 +27,6 @@ impl MMU {
             timer: Timer::new(),
             int_flag: 0,
             int_enable: 0,
-            boot_rom_enable: false,
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn load_boot_rom(&mut self, fname: &str) {
-        let mut file = File::open(fname).unwrap();
-        if file.read_to_end(&mut self.boot_rom).unwrap() != 0x100 {
-            panic!("Boot ROM is corrupted");
-        }
-    }
-
-    pub fn load_rom(&mut self, fname: &str) {
-        let mut file = File::open(fname).unwrap();
-        if file.read_to_end(&mut self.rom).unwrap() != 0x8000 {
-            panic!("ROM is corrupted");
         }
     }
 
@@ -68,8 +47,12 @@ impl MMU {
 
     pub fn write(&mut self, addr: u16, val: u8) {
         match addr {
+            // ROM
+            0x0000...0x7fff => self.catridge.write(addr, val),
             // VRAM
             0x8000...0x9fff => self.ppu.write(addr, val),
+            // External RAM
+            0xa000...0xbfff => self.catridge.write(addr, val),
             // RAM
             0xc000...0xdfff => self.ram[(addr & 0x1fff) as usize] = val,
             // Echo RAM
@@ -86,10 +69,6 @@ impl MMU {
             0xff40...0xff45 | 0xff47...0xff4b => self.ppu.write(addr, val),
             // OAM DMA
             0xff46 => self.do_dma(val),
-            // Disable Boot ROM
-            0xff50 => {
-                self.boot_rom_enable = false;
-            }
             // HRAM
             0xff80...0xfffe => self.hram[(addr & 0x7f) as usize] = val,
             // Interrupt enable
@@ -100,12 +79,12 @@ impl MMU {
 
     pub fn read(&self, addr: u16) -> u8 {
         match addr {
-            // Boot ROM
-            0x0000...0x00ff if self.boot_rom_enable => self.boot_rom[addr as usize],
             // ROM
-            0x0000...0x7fff => self.rom[(addr & 0x7fff) as usize],
+            0x0000...0x7fff => self.catridge.read(addr),
             // VRAM
             0x8000...0x9fff => self.ppu.read(addr),
+            // External RAM
+            0xa000...0xbfff => self.catridge.read(addr),
             // RAM
             0xc000...0xdfff => self.ram[(addr & 0x1fff) as usize],
             // Echo RAM
@@ -129,8 +108,10 @@ impl MMU {
     }
 
     pub fn update(&mut self, tick: u8) {
+        self.catridge.update(tick);
         self.ppu.update(tick);
         self.timer.update(tick);
+        self.joypad.update(tick);
 
         if self.ppu.irq_vblank {
             self.int_flag |= 0x1;
@@ -145,6 +126,11 @@ impl MMU {
         if self.timer.irq {
             self.int_flag |= 0x4;
             self.timer.irq = false;
+        }
+
+        if self.joypad.irq {
+            self.int_flag |= 0x10;
+            self.joypad.irq = false;
         }
     }
 }
