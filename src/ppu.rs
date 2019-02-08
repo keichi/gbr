@@ -307,7 +307,7 @@ impl IODevice for PPU {
             0xff41 => self.stat = (val & 0xf8) | (self.stat & 0x3),
             0xff42 => self.scy = val,
             0xff43 => self.scx = val,
-            0xff44 => self.ly = 0,
+            0xff44 => (),
             0xff45 => {
                 self.lyc = val;
                 self.update_lcdc_interrupt();
