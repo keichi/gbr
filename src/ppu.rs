@@ -308,7 +308,10 @@ impl IODevice for PPU {
             0xff42 => self.scy = val,
             0xff43 => self.scx = val,
             0xff44 => self.ly = 0,
-            0xff45 => self.lyc = val,
+            0xff45 => {
+                self.lyc = val;
+                self.update_lcdc_interrupt();
+            }
             0xff47 => self.bgp = val,
             0xff48 => self.obp0 = val,
             0xff49 => self.obp1 = val,
