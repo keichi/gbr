@@ -81,5 +81,5 @@ impl IODevice for Joypad {
         }
     }
 
-    fn update(&mut self, tick: u8) {}
+    fn update(&mut self, _tick: u8) {}
 }
