@@ -258,7 +258,7 @@ impl PPU {
         &self.frame_buffer
     }
 
-    fn update_lcdc_interrupt(&mut self) {
+    fn update_lyc_interrupt(&mut self) {
         // LYC=LY coincidence interrupt
         if self.ly == self.lyc {
             self.stat |= 0x4;
@@ -269,7 +269,9 @@ impl PPU {
         } else {
             self.stat &= !0x4;
         }
+    }
 
+    fn update_mode_interrupt(&mut self) {
         // Mode interrupts
         match self.stat & 0x3 {
             // H-Blank interrupt
@@ -310,6 +312,7 @@ impl IODevice for PPU {
 
                     let mode = if val & 0x80 > 0 { 2 } else { 0 };
                     self.stat = (self.stat & 0xf8) | mode;
+                    self.update_mode_interrupt();
                 }
 
                 self.lcdc = val;
@@ -319,8 +322,10 @@ impl IODevice for PPU {
             0xff43 => self.scx = val,
             0xff44 => (),
             0xff45 => {
-                self.lyc = val;
-                self.update_lcdc_interrupt();
+                if self.lyc != val {
+                    self.lyc = val;
+                    self.update_lyc_interrupt();
+                }
             }
             0xff47 => self.bgp = val,
             0xff48 => self.obp0 = val,
@@ -395,7 +400,7 @@ impl IODevice for PPU {
                     self.counter -= 172;
                     // Transition to H-Blank mode
                     self.stat = self.stat & 0xf8;
-                    self.update_lcdc_interrupt();
+                    self.update_mode_interrupt();
                 }
             }
             // H-Blank (204 clocks)
@@ -413,7 +418,8 @@ impl IODevice for PPU {
                         self.stat = (self.stat & 0xf8) | 2;
                     }
 
-                    self.update_lcdc_interrupt();
+                    self.update_lyc_interrupt();
+                    self.update_mode_interrupt();
                 }
             }
             // V-Blank (4560 clocks or 10 lines)
@@ -426,9 +432,11 @@ impl IODevice for PPU {
                         // Transition to OAM Search mode
                         self.stat = (self.stat & 0xf8) | 2;
                         self.ly = 0;
+
+                        self.update_mode_interrupt();
                     }
 
-                    self.update_lcdc_interrupt();
+                    self.update_lyc_interrupt();
                 }
             }
         }
