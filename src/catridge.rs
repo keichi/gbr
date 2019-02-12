@@ -66,10 +66,10 @@ impl IODevice for Catridge {
                 // TODO RAM enable/disable
             }
             0x2000...0x3fff => {
-                self.rom_bank = (self.rom_bank & 0xe0) | (val & 0x07);
+                self.rom_bank = (self.rom_bank & 0xe0) | (val & 0x1f);
             }
             0x4000...0x5fff => {
-                self.rom_bank = (self.rom_bank & 0x07) | (val & 0xe0);
+                self.rom_bank = (self.rom_bank & 0x9f) | (val & 0x60);
             }
             0xa000...0xbfff => println!("dame"),
             _ => panic!("Invalid address: 0x{:04x}", addr),
