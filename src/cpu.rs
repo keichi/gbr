@@ -266,14 +266,14 @@ impl CPU {
 
     /// NOP
     fn nop(&mut self) {
-        debug!("NOP");
+        trace!("NOP");
     }
 
     /// LD r16, d16
     fn ld_r16_d16(&mut self, reg: u8) {
         let val = self.read_d16();
 
-        debug!("LD {}, 0x{:04x}", Self::reg16_to_string(reg), val);
+        trace!("LD {}, 0x{:04x}", Self::reg16_to_string(reg), val);
 
         self.write_r16(reg, val);
     }
@@ -283,14 +283,14 @@ impl CPU {
         let addr = self.read_d16();
         let sp = self.sp;
 
-        debug!("LD (0x{:04x}), SP", addr);
+        trace!("LD (0x{:04x}), SP", addr);
 
         self.write_mem16(addr, sp);
     }
 
     /// LD SP, HL
     fn ld_sp_hl(&mut self) {
-        debug!("LD SP, HL");
+        trace!("LD SP, HL");
 
         self.tick += 4;
 
@@ -299,7 +299,7 @@ impl CPU {
 
     /// ADD HL, r16
     fn add_hl_r16(&mut self, reg: u8) {
-        debug!("ADD HL, {}", Self::reg16_to_string(reg));
+        trace!("ADD HL, {}", Self::reg16_to_string(reg));
 
         let hl = self.hl();
         let val = self.read_r16(reg);
@@ -333,7 +333,7 @@ impl CPU {
     fn add_sp_d8(&mut self) {
         let val = self.read_d8() as i8;
 
-        debug!("ADD SP, {}", val);
+        trace!("ADD SP, {}", val);
 
         self.sp = self._add_sp(val);
 
@@ -344,7 +344,7 @@ impl CPU {
     fn ld_hl_sp_d8(&mut self) {
         let offset = self.read_d8() as i8;
 
-        debug!("LD HL, SP{:+}", offset);
+        trace!("LD HL, SP{:+}", offset);
 
         self.tick += 4;
 
@@ -354,7 +354,7 @@ impl CPU {
 
     /// AND r8
     fn and_r8(&mut self, reg: u8) {
-        debug!("AND {}", Self::reg_to_string(reg));
+        trace!("AND {}", Self::reg_to_string(reg));
 
         let res = self.a & self.read_r8(reg);
 
@@ -368,7 +368,7 @@ impl CPU {
 
     /// OR r8
     fn or_r8(&mut self, reg: u8) {
-        debug!("OR {}", Self::reg_to_string(reg));
+        trace!("OR {}", Self::reg_to_string(reg));
 
         let res = self.a | self.read_r8(reg);
 
@@ -382,7 +382,7 @@ impl CPU {
 
     /// XOR r8
     fn xor_r8(&mut self, reg: u8) {
-        debug!("XOR {}", Self::reg_to_string(reg));
+        trace!("XOR {}", Self::reg_to_string(reg));
 
         let res = self.a ^ self.read_r8(reg);
 
@@ -396,7 +396,7 @@ impl CPU {
 
     /// CP r8
     fn cp_r8(&mut self, reg: u8) {
-        debug!("CP {}", Self::reg_to_string(reg));
+        trace!("CP {}", Self::reg_to_string(reg));
 
         let a = self.a;
         let val = self.read_r8(reg);
@@ -409,7 +409,7 @@ impl CPU {
 
     /// Decimal adjust register A
     fn daa(&mut self) {
-        debug!("DAA");
+        trace!("DAA");
 
         let mut a = self.a;
 
@@ -438,7 +438,7 @@ impl CPU {
 
     /// Complement A
     fn cpl(&mut self) {
-        debug!("CPL");
+        trace!("CPL");
 
         self.a = !self.a;
         self.set_f_n(true);
@@ -447,7 +447,7 @@ impl CPU {
 
     /// Complement carry flag
     fn ccf(&mut self) {
-        debug!("CCF");
+        trace!("CCF");
 
         self.set_f_n(false);
         self.set_f_h(false);
@@ -458,7 +458,7 @@ impl CPU {
 
     /// Set carry flag
     fn scf(&mut self) {
-        debug!("SCF");
+        trace!("SCF");
 
         self.set_f_n(false);
         self.set_f_h(false);
@@ -480,7 +480,7 @@ impl CPU {
     fn add_r8(&mut self, reg: u8) {
         let val = self.read_r8(reg);
 
-        debug!("ADD {}", Self::reg_to_string(reg));
+        trace!("ADD {}", Self::reg_to_string(reg));
 
         self._add(val);
     }
@@ -488,7 +488,7 @@ impl CPU {
     fn adc_r8(&mut self, reg: u8) {
         let val = self.read_r8(reg);
 
-        debug!("ADC {}", Self::reg_to_string(reg));
+        trace!("ADC {}", Self::reg_to_string(reg));
 
         self._adc(val);
     }
@@ -496,7 +496,7 @@ impl CPU {
     fn sub_r8(&mut self, reg: u8) {
         let val = self.read_r8(reg);
 
-        debug!("SUB {}", Self::reg_to_string(reg));
+        trace!("SUB {}", Self::reg_to_string(reg));
 
         self._sub(val);
     }
@@ -504,7 +504,7 @@ impl CPU {
     fn sbc_r8(&mut self, reg: u8) {
         let val = self.read_r8(reg);
 
-        debug!("SBC {}", Self::reg_to_string(reg));
+        trace!("SBC {}", Self::reg_to_string(reg));
 
         self._sbc(val);
     }
@@ -513,7 +513,7 @@ impl CPU {
     fn add_d8(&mut self) {
         let val = self.read_d8();
 
-        debug!("ADD 0x{:02x}", val);
+        trace!("ADD 0x{:02x}", val);
 
         self._add(val);
     }
@@ -534,7 +534,7 @@ impl CPU {
     fn sub_d8(&mut self) {
         let val = self.read_d8();
 
-        debug!("SUB 0x{:02x}", val);
+        trace!("SUB 0x{:02x}", val);
 
         self._sub(val);
     }
@@ -558,7 +558,7 @@ impl CPU {
     fn adc_d8(&mut self) {
         let val = self.read_d8();
 
-        debug!("ADC 0x{:02x}", val);
+        trace!("ADC 0x{:02x}", val);
 
         self._adc(val);
     }
@@ -582,7 +582,7 @@ impl CPU {
     fn sbc_d8(&mut self) {
         let val = self.read_d8();
 
-        debug!("SBC 0x{:02x}", val);
+        trace!("SBC 0x{:02x}", val);
 
         self._sbc(val);
     }
@@ -591,7 +591,7 @@ impl CPU {
     fn and_d8(&mut self) {
         let val = self.read_d8();
 
-        debug!("AND 0x{:02x}", val);
+        trace!("AND 0x{:02x}", val);
 
         let res = self.a & val;
 
@@ -607,7 +607,7 @@ impl CPU {
     fn or_d8(&mut self) {
         let val = self.read_d8();
 
-        debug!("OR 0x{:02x}", val);
+        trace!("OR 0x{:02x}", val);
 
         let res = self.a | val;
 
@@ -623,7 +623,7 @@ impl CPU {
     fn xor_d8(&mut self) {
         let val = self.read_d8();
 
-        debug!("XOR 0x{:02x}", val);
+        trace!("XOR 0x{:02x}", val);
 
         let res = self.a ^ val;
 
@@ -639,7 +639,7 @@ impl CPU {
     fn cp_d8(&mut self) {
         let imm = self.read_d8();
 
-        debug!("CP 0x{:02x}", imm);
+        trace!("CP 0x{:02x}", imm);
 
         let a = self.a;
 
@@ -650,7 +650,7 @@ impl CPU {
     }
 
     fn ldi_hl_a(&mut self) {
-        debug!("LD (HL+), A");
+        trace!("LD (HL+), A");
 
         let addr = self.hl();
         let a = self.a;
@@ -660,7 +660,7 @@ impl CPU {
     }
 
     fn ldd_hl_a(&mut self) {
-        debug!("LD (HL-), A");
+        trace!("LD (HL-), A");
 
         let addr = self.hl();
         let a = self.a;
@@ -670,7 +670,7 @@ impl CPU {
     }
 
     fn ldi_a_hl(&mut self) {
-        debug!("LD A, (HL+)");
+        trace!("LD A, (HL+)");
 
         let addr = self.hl();
         self.a = self.read_mem8(addr);
@@ -679,7 +679,7 @@ impl CPU {
     }
 
     fn ldd_a_hl(&mut self) {
-        debug!("LD A, (HL-)");
+        trace!("LD A, (HL-)");
 
         let addr = self.hl();
         self.a = self.read_mem8(addr);
@@ -688,7 +688,7 @@ impl CPU {
     }
 
     fn ld_ind_bc_a(&mut self) {
-        debug!("LD (BC), A");
+        trace!("LD (BC), A");
 
         let addr = self.bc();
         let a = self.a;
@@ -696,7 +696,7 @@ impl CPU {
     }
 
     fn ld_ind_de_a(&mut self) {
-        debug!("LD (DE), A");
+        trace!("LD (DE), A");
 
         let addr = self.de();
         let a = self.a;
@@ -704,7 +704,7 @@ impl CPU {
     }
 
     fn ld_a_ind_bc(&mut self) {
-        debug!("LD A, (BC)");
+        trace!("LD A, (BC)");
 
         let bc = self.bc();
 
@@ -712,7 +712,7 @@ impl CPU {
     }
 
     fn ld_a_ind_de(&mut self) {
-        debug!("LD A, (DE)");
+        trace!("LD A, (DE)");
 
         let de = self.de();
 
@@ -721,7 +721,7 @@ impl CPU {
 
     /// Test bit
     fn bit(&mut self, pos: u8, reg: u8) {
-        debug!("BIT {}, {}", pos, Self::reg_to_string(reg));
+        trace!("BIT {}, {}", pos, Self::reg_to_string(reg));
 
         let z = (self.read_r8(reg) >> pos & 1) == 0;
         self.set_f_z(z);
@@ -731,7 +731,7 @@ impl CPU {
 
     /// Set bit
     fn set(&mut self, pos: u8, reg: u8) {
-        debug!("SET {}, {}", pos, Self::reg_to_string(reg));
+        trace!("SET {}, {}", pos, Self::reg_to_string(reg));
 
         let val = self.read_r8(reg);
         self.write_r8(reg, val | (1 << pos));
@@ -739,7 +739,7 @@ impl CPU {
 
     /// Reset bit
     fn res(&mut self, pos: u8, reg: u8) {
-        debug!("RES {}, {}", pos, Self::reg_to_string(reg));
+        trace!("RES {}, {}", pos, Self::reg_to_string(reg));
 
         let val = self.read_r8(reg);
         self.write_r8(reg, val & !(1 << pos));
@@ -758,7 +758,7 @@ impl CPU {
 
     /// Rotate left through carry
     fn rl(&mut self, reg: u8) {
-        debug!("RL {}", Self::reg_to_string(reg));
+        trace!("RL {}", Self::reg_to_string(reg));
 
         self._rl(reg);
     }
@@ -776,7 +776,7 @@ impl CPU {
 
     /// Rotate left
     fn rlc(&mut self, reg: u8) {
-        debug!("RLC {}", Self::reg_to_string(reg));
+        trace!("RLC {}", Self::reg_to_string(reg));
 
         self._rlc(reg);
     }
@@ -794,7 +794,7 @@ impl CPU {
 
     /// Rotate right through carry
     fn rr(&mut self, reg: u8) {
-        debug!("RR {}", Self::reg_to_string(reg));
+        trace!("RR {}", Self::reg_to_string(reg));
 
         self._rr(reg);
     }
@@ -812,14 +812,14 @@ impl CPU {
 
     /// Rotate right
     fn rrc(&mut self, reg: u8) {
-        debug!("RRC {}", Self::reg_to_string(reg));
+        trace!("RRC {}", Self::reg_to_string(reg));
 
         self._rrc(reg);
     }
 
     /// Shift left into carry
     fn sla(&mut self, reg: u8) {
-        debug!("SLA {}", Self::reg_to_string(reg));
+        trace!("SLA {}", Self::reg_to_string(reg));
 
         let orig = self.read_r8(reg);
         let res = orig << 1;
@@ -833,7 +833,7 @@ impl CPU {
 
     /// Shift right into carry
     fn sra(&mut self, reg: u8) {
-        debug!("SRA {}", Self::reg_to_string(reg));
+        trace!("SRA {}", Self::reg_to_string(reg));
 
         let orig = self.read_r8(reg);
         let res = (orig >> 1) | (orig & 0x80);
@@ -847,7 +847,7 @@ impl CPU {
 
     /// Swap low/hi-nibble
     fn swap(&mut self, reg: u8) {
-        debug!("SWAP {}", Self::reg_to_string(reg));
+        trace!("SWAP {}", Self::reg_to_string(reg));
 
         let orig = self.read_r8(reg);
         let res = ((orig & 0x0f) << 4) | ((orig & 0xf0) >> 4);
@@ -861,7 +861,7 @@ impl CPU {
 
     /// Shift right through carry
     fn srl(&mut self, reg: u8) {
-        debug!("SRL {}", Self::reg_to_string(reg));
+        trace!("SRL {}", Self::reg_to_string(reg));
 
         let orig = self.read_r8(reg);
         let res = orig >> 1;
@@ -882,7 +882,7 @@ impl CPU {
     fn jp_cc_d8(&mut self, cci: u8) {
         let addr = self.read_d16();
 
-        debug!("JP {}, 0x{:04x}", Self::cc_to_string(cci), addr);
+        trace!("JP {}, 0x{:04x}", Self::cc_to_string(cci), addr);
 
         if self.cc(cci) {
             self._jp(addr);
@@ -893,14 +893,14 @@ impl CPU {
     fn jp_d16(&mut self) {
         let address = self.read_d16();
 
-        debug!("JP 0x{:04x}", address);
+        trace!("JP 0x{:04x}", address);
 
         self._jp(address);
     }
 
     /// Unconditional jump to HL
     fn jp_hl(&mut self) {
-        debug!("JP (HL)");
+        trace!("JP (HL)");
 
         self.pc = self.hl();
     }
@@ -909,7 +909,7 @@ impl CPU {
     fn jr_cc_d8(&mut self, cci: u8) {
         let offset = self.read_d8() as i8;
 
-        debug!("JR {}, {}", Self::cc_to_string(cci), offset);
+        trace!("JR {}, {}", Self::cc_to_string(cci), offset);
 
         if self.cc(cci) {
             self._jr(offset);
@@ -926,7 +926,7 @@ impl CPU {
     fn jr_d8(&mut self) {
         let offset = self.read_d8() as i8;
 
-        debug!("JR {}", offset);
+        trace!("JR {}", offset);
 
         self._jr(offset);
     }
@@ -936,7 +936,7 @@ impl CPU {
         let addr = 0xff00 | offset;
         let a = self.a;
 
-        debug!("LD (0xff00+0x{:02x}), A", offset);
+        trace!("LD (0xff00+0x{:02x}), A", offset);
 
         self.write_mem8(addr, a);
     }
@@ -945,7 +945,7 @@ impl CPU {
         let offset = self.read_d8() as u16;
         let addr = 0xff00 | offset;
 
-        debug!("LD A, (0xff00+0x{:02x})", offset);
+        trace!("LD A, (0xff00+0x{:02x})", offset);
 
         self.a = self.read_mem8(addr);
     }
@@ -954,7 +954,7 @@ impl CPU {
         let addr = 0xff00 | self.c as u16;
         let a = self.a;
 
-        debug!("LD (0xff00+C), A");
+        trace!("LD (0xff00+C), A");
 
         self.write_mem8(addr, a);
     }
@@ -962,7 +962,7 @@ impl CPU {
     fn ld_a_io_c(&mut self) {
         let addr = 0xff00 | self.c as u16;
 
-        debug!("LD A, (0xff00+C)");
+        trace!("LD A, (0xff00+C)");
 
         self.a = self.read_mem8(addr);
     }
@@ -971,14 +971,14 @@ impl CPU {
     fn ld_r8_d8(&mut self, reg: u8) {
         let imm = self.read_d8();
 
-        debug!("LD {}, 0x{:02x}", Self::reg_to_string(reg), imm);
+        trace!("LD {}, 0x{:02x}", Self::reg_to_string(reg), imm);
 
         self.write_r8(reg, imm);
     }
 
     /// INC r8
     fn inc_r8(&mut self, reg: u8) {
-        debug!("INC {}", Self::reg_to_string(reg));
+        trace!("INC {}", Self::reg_to_string(reg));
 
         let orig = self.read_r8(reg);
         let res = orig.wrapping_add(1);
@@ -991,7 +991,7 @@ impl CPU {
 
     /// DEC r8
     fn dec_r8(&mut self, reg: u8) {
-        debug!("DEC {}", Self::reg_to_string(reg));
+        trace!("DEC {}", Self::reg_to_string(reg));
 
         let orig = self.read_r8(reg);
         let res = orig.wrapping_sub(1);
@@ -1004,7 +1004,7 @@ impl CPU {
 
     /// LD r8, r8
     fn ld_r8_r8(&mut self, reg1: u8, reg2: u8) {
-        debug!(
+        trace!(
             "LD {}, {}",
             Self::reg_to_string(reg1),
             Self::reg_to_string(reg2)
@@ -1029,7 +1029,7 @@ impl CPU {
     fn call_d16(&mut self) {
         let addr = self.read_d16();
 
-        debug!("CALL 0x{:04x}", addr);
+        trace!("CALL 0x{:04x}", addr);
 
         self._call(addr);
     }
@@ -1038,7 +1038,7 @@ impl CPU {
     fn call_cc_d16(&mut self, cci: u8) {
         let addr = self.read_d16();
 
-        debug!("CALL {}, 0x{:04x}", Self::cc_to_string(cci), addr);
+        trace!("CALL {}, 0x{:04x}", Self::cc_to_string(cci), addr);
 
         if self.cc(cci) {
             self._call(addr);
@@ -1046,7 +1046,7 @@ impl CPU {
     }
 
     fn rst(&mut self, addr: u8) {
-        debug!("RST 0x{:02x}", addr);
+        trace!("RST 0x{:02x}", addr);
 
         self._call(addr as u16);
     }
@@ -1061,14 +1061,14 @@ impl CPU {
 
     /// RET
     fn ret(&mut self) {
-        debug!("RET");
+        trace!("RET");
 
         self._ret();
     }
 
     /// RET CC
     fn ret_cc(&mut self, cci: u8) {
-        debug!("RET {}", Self::cc_to_string(cci));
+        trace!("RET {}", Self::cc_to_string(cci));
 
         self.tick += 4;
 
@@ -1079,7 +1079,7 @@ impl CPU {
 
     /// PUSH BC
     fn push_bc(&mut self) {
-        debug!("PUSH BC");
+        trace!("PUSH BC");
 
         self.sp = self.sp.wrapping_sub(2);
         let val = self.bc();
@@ -1092,7 +1092,7 @@ impl CPU {
 
     /// PUSH DE
     fn push_de(&mut self) {
-        debug!("PUSH DE");
+        trace!("PUSH DE");
 
         self.sp = self.sp.wrapping_sub(2);
         let val = self.de();
@@ -1105,7 +1105,7 @@ impl CPU {
 
     /// PUSH HL
     fn push_hl(&mut self) {
-        debug!("PUSH HL");
+        trace!("PUSH HL");
 
         self.sp = self.sp.wrapping_sub(2);
         let val = self.hl();
@@ -1118,7 +1118,7 @@ impl CPU {
 
     /// PUSH AF
     fn push_af(&mut self) {
-        debug!("PUSH AF");
+        trace!("PUSH AF");
 
         self.sp = self.sp.wrapping_sub(2);
         let val = self.af();
@@ -1131,7 +1131,7 @@ impl CPU {
 
     /// POP BC
     fn pop_bc(&mut self) {
-        debug!("POP BC");
+        trace!("POP BC");
 
         let sp = self.sp;
         let val = self.read_mem16(sp);
@@ -1141,7 +1141,7 @@ impl CPU {
 
     /// POP DE
     fn pop_de(&mut self) {
-        debug!("POP DE");
+        trace!("POP DE");
 
         let sp = self.sp;
         let val = self.read_mem16(sp);
@@ -1151,7 +1151,7 @@ impl CPU {
 
     /// POP HL
     fn pop_hl(&mut self) {
-        debug!("POP HL");
+        trace!("POP HL");
 
         let sp = self.sp;
         let val = self.read_mem16(sp);
@@ -1161,7 +1161,7 @@ impl CPU {
 
     /// POP AF
     fn pop_af(&mut self) {
-        debug!("POP AF");
+        trace!("POP AF");
 
         let sp = self.sp;
         // lower nibble of F is always zero
@@ -1171,35 +1171,35 @@ impl CPU {
     }
 
     fn rlca(&mut self) {
-        debug!("RLCA");
+        trace!("RLCA");
 
         self._rlc(7);
         self.set_f_z(false);
     }
 
     fn rla(&mut self) {
-        debug!("RLA");
+        trace!("RLA");
 
         self._rl(7);
         self.set_f_z(false);
     }
 
     fn rrca(&mut self) {
-        debug!("RLRA");
+        trace!("RLRA");
 
         self._rrc(7);
         self.set_f_z(false);
     }
 
     fn rra(&mut self) {
-        debug!("RRA");
+        trace!("RRA");
 
         self._rr(7);
         self.set_f_z(false);
     }
 
     fn inc_r16(&mut self, reg: u8) {
-        debug!("INC {}", Self::reg16_to_string(reg));
+        trace!("INC {}", Self::reg16_to_string(reg));
 
         let val = self.read_r16(reg);
         self.write_r16(reg, val.wrapping_add(1));
@@ -1208,7 +1208,7 @@ impl CPU {
     }
 
     fn dec_r16(&mut self, reg: u8) {
-        debug!("DEC {}", Self::reg16_to_string(reg));
+        trace!("DEC {}", Self::reg16_to_string(reg));
 
         let val = self.read_r16(reg);
         self.write_r16(reg, val.wrapping_sub(1));
@@ -1220,7 +1220,7 @@ impl CPU {
         let addr = self.read_d16();
         let a = self.a;
 
-        debug!("LD (0x{:04x}), A", addr);
+        trace!("LD (0x{:04x}), A", addr);
 
         self.write_mem8(addr, a);
     }
@@ -1228,28 +1228,28 @@ impl CPU {
     fn ld_a_ind_d16(&mut self) {
         let addr = self.read_d16();
 
-        debug!("LD A, (0x{:04x})", addr);
+        trace!("LD A, (0x{:04x})", addr);
 
         self.a = self.read_mem8(addr);
     }
 
     /// Disable interrupt
     fn di(&mut self) {
-        debug!("DI");
+        trace!("DI");
 
         self.ime = false;
     }
 
     /// Enable interrupt
     fn ei(&mut self) {
-        debug!("EI");
+        trace!("EI");
 
         self.ime = true;
     }
 
     /// Enable interrupt and return
     fn reti(&mut self) {
-        debug!("RETI");
+        trace!("RETI");
 
         self.ime = true;
 
@@ -1280,7 +1280,7 @@ impl CPU {
 
     /// HALT
     fn halt(&mut self) {
-        debug!("HALT");
+        trace!("HALT");
 
         if self.ime {
             self.halted = true;
@@ -1344,6 +1344,8 @@ impl CPU {
         };
 
         self.tick += 8;
+
+        debug!("Calling ISR 0x{:02x}", isr);
 
         self._call(isr);
     }
