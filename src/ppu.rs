@@ -178,16 +178,15 @@ impl PPU {
 
     fn render_sprites(&mut self) {
         // TODO sprite and background priority
-        // TODO 8x16 sprites
 
         let mut n_sprites = 0;
+        let height = if self.lcdc & 0x4 > 0 { 16 } else { 8 };
 
         for i in 0..40 {
             // Parse OAM entry
             let entry_addr = i << 2;
             let sprite_y = self.oam[entry_addr];
             let sprite_x = self.oam[entry_addr + 1];
-            let tile_no = self.oam[entry_addr + 2];
             let flags = self.oam[entry_addr + 3];
 
             let obj_prio = flags & 0x80 > 0;
@@ -200,7 +199,7 @@ impl PPU {
             };
 
             // Check if sprite is visible on this scanline
-            if sprite_y <= self.ly + 8 || sprite_y > self.ly + 16 {
+            if sprite_y <= self.ly + 16 - height || sprite_y > self.ly + 16 {
                 continue;
             }
 
@@ -215,11 +214,27 @@ impl PPU {
                 continue;
             }
 
-            let offset_y = if flip_y {
-                7 - (self.ly + 16 - sprite_y)
+            // Tile number
+            let tile_no = if self.lcdc & 0x4 > 0 {
+                // 8x16 sprite
+                if (self.ly + 8 < sprite_y) ^ flip_y {
+                    self.oam[entry_addr + 2] & 0xfe
+                } else {
+                    self.oam[entry_addr + 2] | 0x01
+                }
             } else {
-                self.ly + 16 - sprite_y
+                // 8x8 sprite
+                self.oam[entry_addr + 2]
             };
+
+            // Y-offset within the tile
+            let offset_y = if flip_y {
+                7 - ((self.ly + 16 - sprite_y) & 0x7)
+            } else {
+                (self.ly + 16 - sprite_y) & 0x7
+            };
+
+            // Fetch tile data
             let tile = self.fetch_tile(tile_no, offset_y, true);
 
             for offset_x in 0..8 {
