@@ -102,6 +102,9 @@ impl IODevice for Catridge {
             0x6000...0x7fff => self.mode = val & 0x01 > 0,
             // RAM bank 00-03
             0xa000...0xbfff => {
+                if !self.ram_enable {
+                    return;
+                }
                 let offset = (8 * 1024) * self.ram_bank_no() as usize;
                 self.ram[(addr & 0x1fff) as usize + offset] = val
             }
@@ -120,6 +123,9 @@ impl IODevice for Catridge {
             }
             // RAM bank 00-03
             0xa000...0xbfff => {
+                if !self.ram_enable {
+                    return 0xff;
+                }
                 let offset = (8 * 1024) * self.ram_bank_no() as usize;
                 self.ram[(addr & 0x1fff) as usize + offset]
             }
