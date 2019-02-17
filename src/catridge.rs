@@ -24,7 +24,9 @@ impl Catridge {
             0 => 32 * 1024,
             n => 32 * 1024 << (n as usize),
         };
+
         let num_rom_banks = 2 << rom[0x0148];
+
         let ram_size: usize = match rom[0x0149] {
             0 => 0,
             1 => 2 * 1024,
@@ -34,7 +36,40 @@ impl Catridge {
             5 => 64 * 1024,
             _ => panic!("RAM size invalid"),
         };
+
         let mbc_type = rom[0x0147];
+
+        let mbc_name = match mbc_type {
+            0x00 => "ROM ONLY",
+            0x01 => "MBC1",
+            0x02 => "MBC1+RAM",
+            0x03 => "MBC1+RAM+BATTERY",
+            0x05 => "MBC2",
+            0x06 => "MBC2+BATTERY",
+            0x08 => "ROM+RAM",
+            0x09 => "ROM+RAM+BATTERY",
+            0x0b => "MMM01",
+            0x0c => "MMM01+RAM",
+            0x0d => "MMM01+RAM+BATTERY",
+            0x0f => "MBC3+TIMER+BATTERY",
+            0x10 => "MBC3+TIMER+RAM+BATTERY",
+            0x11 => "MBC3",
+            0x12 => "MBC3+RAM",
+            0x13 => "MBC3+RAM+BATTERY",
+            0x19 => "MBC5",
+            0x1a => "MBC5+RAM",
+            0x1b => "MBC5+RAM+BATTERY",
+            0x1c => "MBC5+RUMBLE",
+            0x1d => "MBC5+RUMBLE+RAM",
+            0x1e => "MBC5+RUMBLE+RAM+BATTERY",
+            0x20 => "MBC6",
+            0x22 => "MBC7+SENSOR+RUMBLE+RAM+BATTERY",
+            0xfc => "POCKET CAMERA",
+            0xfd => "BANDAI TAMA5",
+            0xfe => "HuC3",
+            0xff => "HuC1+RAM+BATTERY",
+            _ => "Unknown",
+        };
 
         let mut chksum: u8 = 0;
         for i in 0x0134..0x014d {
@@ -46,12 +81,12 @@ impl Catridge {
         }
 
         if chksum != rom[0x014d] {
-            panic!("ROM header is corrupted");
+            panic!("ROM header checksum is incorrect");
         }
 
-        debug!("ROM size {}", rom_size);
-        debug!("RAM size {}", ram_size);
-        debug!("MBC type {}", mbc_type);
+        info!("ROM size {}KB", rom_size / 1024);
+        info!("RAM size {}KB", ram_size / 1024);
+        info!("MBC type {}", mbc_name);
 
         Catridge {
             rom: rom,
