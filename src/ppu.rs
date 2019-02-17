@@ -1,5 +1,8 @@
 use io_device::IODevice;
 
+const SCREEN_W: u8 = 160;
+const SCREEN_H: u8 = 144;
+
 #[derive(Copy, Clone, PartialEq)]
 enum BGPriority {
     Color0,
@@ -40,9 +43,11 @@ pub struct PPU {
     /// Elapsed clocks in current mode
     counter: u16,
     /// Frame buffer
-    frame_buffer: [u8; 160 * 144],
+    frame_buffer: [u8; (SCREEN_W as usize) * (SCREEN_H as usize)],
+    /// Current scanline
+    scanline: [u8; SCREEN_W as usize],
     /// BG priority
-    bg_prio: [BGPriority; 160],
+    bg_prio: [BGPriority; SCREEN_W as usize],
 }
 
 impl PPU {
@@ -72,8 +77,9 @@ impl PPU {
             irq_vblank: false,
             irq_lcdc: false,
             counter: 0,
-            frame_buffer: [0; 160 * 144],
-            bg_prio: [BGPriority::Color0; 160],
+            scanline: [0; SCREEN_W as usize],
+            frame_buffer: [0; (SCREEN_W as usize) * (SCREEN_H as usize)],
+            bg_prio: [BGPriority::Color0; SCREEN_W as usize],
         }
     }
 
@@ -151,7 +157,7 @@ impl PPU {
 
         let mut window = false;
 
-        for x in 0..160 {
+        for x in 0..SCREEN_W {
             // Check if window is enabled
             if self.lcdc & 0x20 > 0 {
                 if self.wy <= self.ly && self.wx == x + 7 {
@@ -173,7 +179,7 @@ impl PPU {
                 BGPriority::Color123
             };
 
-            self.frame_buffer[(x as usize) + (self.ly as usize) * 160] = color;
+            self.scanline[x as usize] = color;
 
             offset_x += 1;
 
@@ -223,7 +229,7 @@ impl PPU {
             }
 
             // Check if sprite is within the screen
-            if sprite_x == 0 || sprite_x > 160 + 8 - 1 {
+            if sprite_x == 0 || sprite_x > SCREEN_W + 8 - 1 {
                 continue;
             }
 
@@ -257,7 +263,7 @@ impl PPU {
 
                 let x = offset_x + sprite_x - 8;
 
-                if x >= 160 {
+                if x >= SCREEN_W {
                     break;
                 }
 
@@ -271,7 +277,7 @@ impl PPU {
                 }
                 let color = self.map_color(color_no, palette);
 
-                self.frame_buffer[(x as usize) + (self.ly as usize) * 160] = color;
+                self.scanline[x as usize] = color;
             }
         }
     }
@@ -282,6 +288,11 @@ impl PPU {
         }
         if self.lcdc & 0x2 > 0 {
             self.render_sprites();
+        }
+
+        for x in 0..SCREEN_W {
+            let ix = (x as usize) + (self.ly as usize) * (SCREEN_W as usize);
+            self.frame_buffer[ix] = self.scanline[x as usize];
         }
     }
 
@@ -440,7 +451,7 @@ impl IODevice for PPU {
                     self.counter -= 204;
                     self.ly += 1;
 
-                    if self.ly >= 144 {
+                    if self.ly >= SCREEN_H {
                         // Transition to V-Blank mode
                         self.stat = (self.stat & 0xf8) | 1;
                         self.irq_vblank = true;
