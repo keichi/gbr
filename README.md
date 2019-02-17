@@ -19,7 +19,7 @@
     - [x] Sprite
     - [x] V-blank interrupt
     - [x] LCDC STAT interrupt
-    - [ ] Sprite and background priority
+    - [x] Sprite and background priority
     - [ ] OAM bug
 - [x] Joypad
     - [x] Joypad input
