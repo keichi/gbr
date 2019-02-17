@@ -28,8 +28,8 @@ fn translate_keycode(key: Keycode) -> Option<joypad::Key> {
         Keycode::Right => Some(joypad::Key::Right),
         Keycode::Return => Some(joypad::Key::Start),
         Keycode::RShift => Some(joypad::Key::Select),
-        Keycode::S => Some(joypad::Key::A),
-        Keycode::A => Some(joypad::Key::B),
+        Keycode::X => Some(joypad::Key::A),
+        Keycode::Z => Some(joypad::Key::B),
         _ => None,
     }
 }
