@@ -1,5 +1,11 @@
 use io_device::IODevice;
 
+#[derive(Copy, Clone, PartialEq)]
+enum BGPriority {
+    Color0,
+    Color123,
+}
+
 pub struct PPU {
     vram: [u8; 0x2000],
     oam: [u8; 0xa0],
@@ -35,6 +41,8 @@ pub struct PPU {
     counter: u16,
     /// Frame buffer
     frame_buffer: [u8; 160 * 144],
+    /// BG priority
+    bg_prio: [BGPriority; 160],
 }
 
 impl PPU {
@@ -65,6 +73,7 @@ impl PPU {
             irq_lcdc: false,
             counter: 0,
             frame_buffer: [0; 160 * 144],
+            bg_prio: [BGPriority::Color0; 160],
         }
     }
 
@@ -158,6 +167,12 @@ impl PPU {
             let color_no = self.get_color_no(tile, 7 - offset_x);
             let color = self.map_color(color_no, self.bgp);
 
+            self.bg_prio[x as usize] = if color_no == 0 {
+                BGPriority::Color0
+            } else {
+                BGPriority::Color123
+            };
+
             self.frame_buffer[(x as usize) + (self.ly as usize) * 160] = color;
 
             offset_x += 1;
@@ -177,8 +192,6 @@ impl PPU {
     }
 
     fn render_sprites(&mut self) {
-        // TODO sprite and background priority
-
         let mut n_sprites = 0;
         let height = if self.lcdc & 0x4 > 0 { 16 } else { 8 };
 
@@ -251,6 +264,9 @@ impl PPU {
                 let bitpos = if flip_x { offset_x } else { 7 - offset_x };
                 let color_no = self.get_color_no(tile, bitpos);
                 if color_no == 0 {
+                    continue;
+                }
+                if self.bg_prio[x as usize] == BGPriority::Color123 && obj_prio {
                     continue;
                 }
                 let color = self.map_color(color_no, palette);
