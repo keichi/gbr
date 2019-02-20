@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Write};
 
 use io_device::IODevice;
 
@@ -122,13 +122,30 @@ impl Catridge {
             0
         }
     }
+
+    pub fn read_save_file(&mut self, fname: &str) {
+        info!("Reading save file from: {}", fname);
+
+        if let Ok(mut file) = File::open(fname) {
+            self.ram = Vec::new();
+            file.read_to_end(&mut self.ram).unwrap();
+        }
+    }
+
+    pub fn write_save_file(&mut self, fname: &str) {
+        info!("Writing save file to: {}", fname);
+
+        if let Ok(mut file) = File::create(fname) {
+            file.write_all(&mut self.ram).unwrap();
+        }
+    }
 }
 
 impl IODevice for Catridge {
     fn write(&mut self, addr: u16, val: u8) {
         match addr {
             // RAM enable
-            0x0000...0x1fff => self.ram_enable = val & 0x0f > 0,
+            0x0000...0x1fff => self.ram_enable = val & 0x0f == 0x0a,
             // ROM bank number (lower 5 bits)
             0x2000...0x3fff => self.bank_no_lower = val & 0x1f,
             // RAM bank number or ROM bank number (upper 2 bits)
