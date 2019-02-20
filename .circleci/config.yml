@@ -12,6 +12,6 @@ jobs:
       - image: circleci/rust:1.32.0-stretch
     steps:
       - checkout
-      - run: sudo apt install libsdl2-dev
+      - run: sudo apt update && sudo apt install libsdl2-dev
       - run: cargo check
       - run: cargo build
