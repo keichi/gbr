@@ -2,6 +2,8 @@
 
 [![CircleCI](https://circleci.com/gh/keichi/rgb.svg?style=svg)](https://circleci.com/gh/keichi/rgb)
 
+![Mario](https://raw.githubusercontent.com/keichi/rgb/master/images/mario.png)
+
 ## Prerequisites
 
 - Rust 1.31.1
