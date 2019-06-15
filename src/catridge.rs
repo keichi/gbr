@@ -160,7 +160,7 @@ impl IODevice for Catridge {
                 let offset = (8 * 1024) * self.ram_bank_no() as usize;
                 self.ram[(addr & 0x1fff) as usize + offset] = val
             }
-            _ => panic!("Invalid address: 0x{:04x}", addr),
+            _ => unreachable!("Unexpected address: 0x{:04x}", addr),
         }
     }
 
@@ -181,7 +181,7 @@ impl IODevice for Catridge {
                 let offset = (8 * 1024) * self.ram_bank_no() as usize;
                 self.ram[(addr & 0x1fff) as usize + offset]
             }
-            _ => panic!("Invalid address: 0x{:04x}", addr),
+            _ => unreachable!("Unexpected address: 0x{:04x}", addr),
         }
     }
 

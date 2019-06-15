@@ -36,7 +36,7 @@ impl IODevice for Timer {
             0xff06 => self.tma = val,
             // TAC
             0xff07 => self.tac = val & 0x7,
-            _ => panic!("Invalid address: 0x{:04x}", addr),
+            _ => unreachable!("Unexpected address: 0x{:04x}", addr),
         }
     }
 
@@ -50,7 +50,7 @@ impl IODevice for Timer {
             0xff06 => self.tma,
             // TAC
             0xff07 => self.tac,
-            _ => panic!("Invalid address: 0x{:04x}", addr),
+            _ => unreachable!("Unexpected address: 0x{:04x}", addr),
         }
     }
 

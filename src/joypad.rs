@@ -60,7 +60,7 @@ impl IODevice for Joypad {
     fn write(&mut self, addr: u16, val: u8) {
         match addr {
             0xff00 => self.joyp = (self.joyp & 0xcf) | (val & 0x30),
-            _ => panic!("Invalid address: 0x{:04x}", addr),
+            _ => unreachable!("Unexpected address: 0x{:04x}", addr),
         }
     }
 
@@ -77,7 +77,7 @@ impl IODevice for Joypad {
                     self.joyp
                 }
             }
-            _ => panic!("Invalid address: 0x{:04x}", addr),
+            _ => unreachable!("Unexpected address: 0x{:04x}", addr),
         }
     }
 

@@ -375,7 +375,7 @@ impl IODevice for PPU {
             0xff4a => self.wy = val,
             0xff4b => self.wx = val,
 
-            _ => panic!("Invalid address: 0x{:04x}", addr),
+            _ => unreachable!("Unexpected address: 0x{:04x}", addr),
         }
     }
 
@@ -415,7 +415,7 @@ impl IODevice for PPU {
             0xff4a => self.wy,
             0xff4b => self.wx,
 
-            _ => panic!("Invalid address: 0x{:04x}", addr),
+            _ => unreachable!("Unexpected address: 0x{:04x}", addr),
         }
     }
 
