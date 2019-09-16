@@ -16,4 +16,4 @@ env_logger = "0.6"
 sdl2 = "0.32.1"
 
 [badges]
-circle-ci = { repository = "...", branch = "master" }
+circle-ci = { repository = "keichi/gbr", branch = "master" }
