@@ -1,6 +1,6 @@
 [package]
 name = "gbr"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Keichi Takahashi <keichi.t@me.com>"]
 description = "Yet another Game Boy emulator in Rust."
 repository = "https://github.com/keichi/gbr"
