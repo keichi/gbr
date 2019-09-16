@@ -1,8 +1,12 @@
 use io_device::IODevice;
 
+/// Joypad
 pub struct Joypad {
+    /// Joypad
     joyp: u8,
+    /// Keypress state
     key_state: u8,
+    /// Interrupt request
     pub irq: bool,
 }
 
@@ -19,6 +23,7 @@ pub enum Key {
 }
 
 impl Joypad {
+    /// Creates a new `Joypad`.
     pub fn new() -> Self {
         Joypad {
             joyp: 0xff,

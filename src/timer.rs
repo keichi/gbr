@@ -14,6 +14,7 @@ pub struct Timer {
 }
 
 impl Timer {
+    /// Creates a new `Timer`.
     pub fn new() -> Self {
         Timer {
             tima: 0,

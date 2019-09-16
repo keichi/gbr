@@ -4,19 +4,29 @@ use joypad::Joypad;
 use ppu::PPU;
 use timer::Timer;
 
+/// Memory space.
 pub struct MMU {
+    /// Catridge
     pub catridge: Catridge,
+    /// RAM
     ram: [u8; 0x2000],
+    /// High RAM
     hram: [u8; 0x7f],
+    /// Joypad
     pub joypad: Joypad,
+    /// Timer
     timer: Timer,
     // TODO should this be public?
+    /// Pixel Processing Unit
     pub ppu: PPU,
+    /// Interrupt flag
     pub int_flag: u8,
+    /// Interrupt enable
     pub int_enable: u8,
 }
 
 impl MMU {
+    /// Creates a new `MMU`.
     pub fn new(rom_name: &str) -> Self {
         MMU {
             catridge: Catridge::new(rom_name),
@@ -30,6 +40,7 @@ impl MMU {
         }
     }
 
+    /// Starts a DMA transfer.
     // TODO OAM DMA Timing
     fn do_dma(&mut self, val: u8) {
         if val < 0x80 || 0xdf < val {
@@ -45,6 +56,7 @@ impl MMU {
         }
     }
 
+    /// Writes a byte to an address.
     pub fn write(&mut self, addr: u16, val: u8) {
         match addr {
             // ROM
@@ -77,6 +89,7 @@ impl MMU {
         }
     }
 
+    /// Reads a byte from an address.
     pub fn read(&self, addr: u16) -> u8 {
         match addr {
             // ROM
@@ -107,6 +120,7 @@ impl MMU {
         }
     }
 
+    /// Progresses the clock for a given number of ticks.
     pub fn update(&mut self, tick: u8) {
         self.catridge.update(tick);
         self.ppu.update(tick);

@@ -21,6 +21,7 @@ mod mmu;
 mod ppu;
 mod timer;
 
+/// Translates keycode to `joypad::Key` enum.
 fn translate_keycode(key: Keycode) -> Option<joypad::Key> {
     match key {
         Keycode::Down => Some(joypad::Key::Down),
@@ -35,18 +36,22 @@ fn translate_keycode(key: Keycode) -> Option<joypad::Key> {
     }
 }
 
+/// Handles key down event.
 fn handle_keydown(cpu: &mut cpu::CPU, key: Keycode) {
     translate_keycode(key).map(|k| cpu.mmu.joypad.keydown(k));
 }
 
+/// Handles key up event.
 fn handle_keyup(cpu: &mut cpu::CPU, key: Keycode) {
     translate_keycode(key).map(|k| cpu.mmu.joypad.keyup(k));
 }
 
+/// Returns ROM filename.
 fn rom_fname() -> String {
     env::args().nth(1).unwrap()
 }
 
+/// Returns save filename for current ROM.
 fn save_fname() -> String {
     let mut path_buf = PathBuf::from(rom_fname());
     path_buf.set_extension("sav");

@@ -1,6 +1,8 @@
 use io_device::IODevice;
 
+/// Width of screen in pixels.
 const SCREEN_W: u8 = 160;
+/// Height of screen in pixels.
 const SCREEN_H: u8 = 144;
 
 #[derive(Copy, Clone, PartialEq)]
@@ -9,8 +11,11 @@ enum BGPriority {
     Color123,
 }
 
+/// Pixel Processing Unit.
 pub struct PPU {
+    /// VRAM
     vram: [u8; 0x2000],
+    /// OAM
     oam: [u8; 0xa0],
     /// LCD Control
     lcdc: u8,
@@ -46,7 +51,7 @@ pub struct PPU {
     frame_buffer: [u8; (SCREEN_W as usize) * (SCREEN_H as usize)],
     /// Current scanline
     scanline: [u8; SCREEN_W as usize],
-    /// BG priority
+    /// Background priority
     bg_prio: [BGPriority; SCREEN_W as usize],
 }
 
@@ -58,6 +63,7 @@ impl PPU {
     // 0x1800-0x1bff: Tile map #1
     // 0x1c00-0x1fff: Tile map #2
 
+    /// Creates a new `PPU`
     pub fn new() -> Self {
         PPU {
             vram: [0; 0x2000],
@@ -83,6 +89,7 @@ impl PPU {
         }
     }
 
+    /// Fetches tile data from VRAM.
     fn fetch_tile(&self, tile_no: u8, offset_y: u8, tile_data_sel: bool) -> (u8, u8) {
         // Fetch tile data from tile set
         let tile_data_addr = if tile_data_sel {
@@ -100,6 +107,7 @@ impl PPU {
         (tile0, tile1)
     }
 
+    /// Fetches BG or Window tile data from VRAM.
     fn fetch_bg_window_tile(
         &self,
         tile_x: u8,
@@ -114,6 +122,7 @@ impl PPU {
         self.fetch_tile(tile_no, offset_y, self.lcdc & 0x10 > 0)
     }
 
+    /// Fetches BG tile data from VRAM.
     fn fetch_bg_tile(&self, tile_x: u8, tile_y: u8, offset_y: u8) -> (u8, u8) {
         // Fetch tile index from tile map
         let tile_map_base = if self.lcdc & 0x8 > 0 { 0x1c00 } else { 0x1800 };
@@ -121,6 +130,7 @@ impl PPU {
         self.fetch_bg_window_tile(tile_x, tile_y, offset_y, tile_map_base)
     }
 
+    /// Fetches Window tile data from VRAM.
     fn fetch_window_tile(&self, tile_x: u8, tile_y: u8, offset_y: u8) -> (u8, u8) {
         // Fetch tile index from tile map
         let tile_map_base = if self.lcdc & 0x40 > 0 { 0x1c00 } else { 0x1800 };
@@ -128,6 +138,7 @@ impl PPU {
         self.fetch_bg_window_tile(tile_x, tile_y, offset_y, tile_map_base)
     }
 
+    /// Converts color number to brightness using palette.
     fn map_color(&self, color_no: u8, palette: u8) -> u8 {
         match (palette >> (color_no << 1)) & 0x3 {
             0 => 0xff,
@@ -137,6 +148,7 @@ impl PPU {
         }
     }
 
+    /// Returns the color number at a given position from tile data.
     fn get_color_no(&self, tile: (u8, u8), bitpos: u8) -> u8 {
         let lo_bit = tile.0 >> bitpos & 1;
         let hi_bit = tile.1 >> bitpos & 1;
@@ -144,6 +156,7 @@ impl PPU {
         hi_bit << 1 | lo_bit
     }
 
+    /// Renders BG.
     fn render_bg(&mut self) {
         // Tile coordinate
         let mut tile_x = self.scx >> 3;
@@ -197,6 +210,7 @@ impl PPU {
         }
     }
 
+    /// Renders sprites.
     fn render_sprites(&mut self) {
         let mut n_sprites = 0;
         let height = if self.lcdc & 0x4 > 0 { 16 } else { 8 };
@@ -282,6 +296,7 @@ impl PPU {
         }
     }
 
+    /// Renders a scanline.
     fn render_scanline(&mut self) {
         if self.lcdc & 0x1 > 0 {
             self.render_bg();
@@ -296,10 +311,12 @@ impl PPU {
         }
     }
 
+    /// Returns the current contents of the frame buffer.
     pub fn frame_buffer(&self) -> &[u8] {
         &self.frame_buffer
     }
 
+    /// Checks LYC interrupt.
     fn update_lyc_interrupt(&mut self) {
         // LYC=LY coincidence interrupt
         if self.ly == self.lyc {
@@ -313,6 +330,7 @@ impl PPU {
         }
     }
 
+    /// Checks LCD mode interrupt.
     fn update_mode_interrupt(&mut self) {
         // Mode interrupts
         match self.stat & 0x3 {

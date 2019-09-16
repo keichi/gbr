@@ -18,6 +18,7 @@ pub struct CPU {
 }
 
 impl CPU {
+    /// Creates a new `CPU`
     pub fn new(rom_name: &str) -> Self {
         CPU {
             mmu: MMU::new(rom_name),
@@ -37,82 +38,91 @@ impl CPU {
         }
     }
 
-    /// Read AF register
+    /// Reads AF register
     fn af(&self) -> u16 {
         (self.a as u16) << 8 | self.f as u16
     }
 
-    /// Write AF register
+    /// Writes AF register
     fn set_af(&mut self, val: u16) {
         self.a = (val >> 8 & 0xff) as u8;
         self.f = (val & 0xff) as u8;
     }
 
-    /// Read BC register
+    /// Reads BC register
     fn bc(&self) -> u16 {
         (self.b as u16) << 8 | self.c as u16
     }
 
-    /// Write BC register
+    /// Writes BC register
     fn set_bc(&mut self, val: u16) {
         self.b = (val >> 8 & 0xff) as u8;
         self.c = (val & 0xff) as u8;
     }
 
-    /// Read DE register
+    /// Reads DE register
     fn de(&self) -> u16 {
         (self.d as u16) << 8 | self.e as u16
     }
 
-    /// Write DE register
+    /// Writes DE register
     fn set_de(&mut self, val: u16) {
         self.d = (val >> 8 & 0xff) as u8;
         self.e = (val & 0xff) as u8;
     }
 
-    /// Read HL register
+    /// Reads HL register
     fn hl(&self) -> u16 {
         (self.h as u16) << 8 | self.l as u16
     }
 
-    /// Write HL register
+    /// Writes HL register
     fn set_hl(&mut self, val: u16) {
         self.h = (val >> 8 & 0xff) as u8;
         self.l = (val & 0xff) as u8;
     }
 
+    /// Sets Z flag
     fn set_f_z(&mut self, z: bool) {
         self.f = (self.f & !(1 << 7)) | (u8::from(z) << 7);
     }
 
+    /// Returns Z flag
     fn f_z(&self) -> bool {
         (self.f >> 7) & 1 == 1
     }
 
+    /// Sets N flag
     fn set_f_n(&mut self, n: bool) {
         self.f = (self.f & !(1 << 6)) | (u8::from(n) << 6);
     }
 
+    /// Returns N flag
     fn f_n(&self) -> bool {
         (self.f >> 6) & 1 == 1
     }
 
+    /// Sets H flag
     fn set_f_h(&mut self, h: bool) {
         self.f = (self.f & !(1 << 5)) | (u8::from(h) << 5);
     }
 
+    /// Returns H flag
     fn f_h(&self) -> bool {
         (self.f >> 5) & 1 == 1
     }
 
+    /// Sets C flag
     fn set_f_c(&mut self, c: bool) {
         self.f = (self.f & !(1 << 4)) | (u8::from(c) << 4);
     }
 
+    /// Returns C flag
     fn f_c(&self) -> bool {
         (self.f >> 4) & 1 == 1
     }
 
+    /// Converst 8-bit register index to name
     fn reg_to_string(idx: u8) -> String {
         match idx {
             0 => String::from("B"),
@@ -127,6 +137,7 @@ impl CPU {
         }
     }
 
+    /// Converst 16-bit register index to name
     fn reg16_to_string(idx: u8) -> String {
         match idx {
             0 => String::from("BC"),
@@ -137,7 +148,7 @@ impl CPU {
         }
     }
 
-    /// Write 8-bit operand
+    /// Writes 8-bit operand
     fn write_r8(&mut self, idx: u8, val: u8) {
         match idx {
             0 => self.b = val,
@@ -155,7 +166,7 @@ impl CPU {
         }
     }
 
-    /// Read 8-bit operand
+    /// Reads 8-bit operand
     fn read_r8(&mut self, idx: u8) -> u8 {
         match idx {
             0 => self.b,
@@ -173,7 +184,7 @@ impl CPU {
         }
     }
 
-    /// Write 16-bit operand
+    /// Writes 16-bit operand
     fn write_r16(&mut self, idx: u8, val: u16) {
         match idx {
             0 => self.set_bc(val),
@@ -184,7 +195,7 @@ impl CPU {
         }
     }
 
-    /// Read 16-bit operand
+    /// Reads 16-bit operand
     fn read_r16(&mut self, idx: u8) -> u16 {
         match idx {
             0 => self.bc(),
@@ -195,7 +206,7 @@ impl CPU {
         }
     }
 
-    /// Read 8-bit immediate from memory
+    /// Reads 8-bit immediate from memory
     fn read_d8(&mut self) -> u8 {
         let pc = self.pc;
         let imm = self.read_mem8(pc);
@@ -204,7 +215,7 @@ impl CPU {
         imm
     }
 
-    /// Read 16-bit immediate from memory
+    /// Reads 16-bit immediate from memory
     fn read_d16(&mut self) -> u16 {
         let pc = self.pc;
         let imm = self.read_mem16(pc);
@@ -213,7 +224,7 @@ impl CPU {
         imm
     }
 
-    /// Check branch condition
+    /// Checks branch condition
     fn cc(&self, idx: u8) -> bool {
         match idx {
             0 => !self.f_z(),
@@ -224,6 +235,7 @@ impl CPU {
         }
     }
 
+    /// Converts branch condition to name
     fn cc_to_string(idx: u8) -> String {
         match idx {
             0 => String::from("NZ"),
@@ -234,14 +246,14 @@ impl CPU {
         }
     }
 
-    /// Write 8-bit value to memory
+    /// Writes 8-bit value to memory
     fn write_mem8(&mut self, addr: u16, val: u8) {
         self.mmu.write(addr, val);
 
         self.tick += 4;
     }
 
-    /// Read 8-bit value from memory
+    /// Reads 8-bit value from memory
     fn read_mem8(&mut self, addr: u16) -> u8 {
         let ret = self.mmu.read(addr);
 
@@ -250,13 +262,13 @@ impl CPU {
         ret
     }
 
-    /// Write 16-bit value to memory
+    /// Writes 16-bit value to memory
     fn write_mem16(&mut self, addr: u16, val: u16) {
         self.write_mem8(addr, (val & 0xff) as u8);
         self.write_mem8(addr.wrapping_add(1), (val >> 8) as u8);
     }
 
-    /// Read 16-bit value from memory
+    /// Reads 16-bit value from memory
     fn read_mem16(&mut self, addr: u16) -> u16 {
         let lo = self.read_mem8(addr);
         let hi = self.read_mem8(addr.wrapping_add(1));
@@ -477,6 +489,7 @@ impl CPU {
         self.set_f_c(carry);
     }
 
+    /// ADD r8
     fn add_r8(&mut self, reg: u8) {
         let val = self.read_r8(reg);
 
@@ -485,6 +498,7 @@ impl CPU {
         self._add(val);
     }
 
+    /// ADC r8
     fn adc_r8(&mut self, reg: u8) {
         let val = self.read_r8(reg);
 
@@ -493,6 +507,7 @@ impl CPU {
         self._adc(val);
     }
 
+    /// SUB r8
     fn sub_r8(&mut self, reg: u8) {
         let val = self.read_r8(reg);
 
@@ -501,6 +516,7 @@ impl CPU {
         self._sub(val);
     }
 
+    /// SBC r8
     fn sbc_r8(&mut self, reg: u8) {
         let val = self.read_r8(reg);
 
@@ -1287,6 +1303,7 @@ impl CPU {
         }
     }
 
+    /// Execute a single instruction and handle IRQs.
     pub fn step(&mut self) -> u8 {
         let mut total_tick = 0;
 
@@ -1313,6 +1330,7 @@ impl CPU {
         total_tick
     }
 
+    /// Checks IRQs and execute ISRs if requested.
     fn check_irqs(&mut self) {
         // Bit 0 has the highest priority
         for i in 0..5 {
@@ -1327,6 +1345,7 @@ impl CPU {
         }
     }
 
+    /// Calls requested interrupt service routine.
     fn call_isr(&mut self, id: u8) {
         // Reset corresponding bit in IF
         self.mmu.int_flag &= !(1 << id);
@@ -1350,6 +1369,7 @@ impl CPU {
         self._call(isr);
     }
 
+    /// Fetches and executes a single instructions.
     fn fetch_and_exec(&mut self) {
         let opcode = self.read_d8();
         let reg = opcode & 7;
@@ -1506,6 +1526,7 @@ impl CPU {
         }
     }
 
+    /// Dumps current CPU state.
     #[allow(dead_code)]
     pub fn dump(&self) {
         println!("CPU State:");
