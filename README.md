@@ -1,6 +1,6 @@
-# gbr
+# gbr [![CircleCI](https://circleci.com/gh/keichi/gbr.svg?style=svg)](https://circleci.com/gh/keichi/gbr)
 
-[![CircleCI](https://circleci.com/gh/keichi/gbr.svg?style=svg)](https://circleci.com/gh/keichi/gbr)
+Yet another Game Boy emulator in Rust.
 
 ![Mario](https://raw.githubusercontent.com/keichi/gbr/master/images/mario.png)
 
