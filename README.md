@@ -1,8 +1,8 @@
-# rgb
+# gbr
 
-[![CircleCI](https://circleci.com/gh/keichi/rgb.svg?style=svg)](https://circleci.com/gh/keichi/rgb)
+[![CircleCI](https://circleci.com/gh/keichi/gbr.svg?style=svg)](https://circleci.com/gh/keichi/gbr)
 
-![Mario](https://raw.githubusercontent.com/keichi/rgb/master/images/mario.png)
+![Mario](https://raw.githubusercontent.com/keichi/gbr/master/images/mario.png)
 
 ## Prerequisites
 

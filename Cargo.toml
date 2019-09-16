@@ -1,5 +1,5 @@
 [package]
-name = "rgb"
+name = "gbr"
 version = "0.1.0"
 authors = ["Keichi Takahashi <keichi.t@me.com>"]
 

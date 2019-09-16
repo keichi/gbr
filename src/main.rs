@@ -65,7 +65,7 @@ fn main() {
     let video_subsystem = sdl_context.video().unwrap();
 
     let window = video_subsystem
-        .window("rgb", 320, 288)
+        .window("gbr", 320, 288)
         .position_centered()
         .build()
         .unwrap();

@@ -6,6 +6,7 @@ use io_device::IODevice;
 pub struct Catridge {
     rom: Vec<u8>,
     ram: Vec<u8>,
+    #[allow(dead_code)]
     mbc_type: u8,
     ram_enable: bool,
     bank_no_upper: u8,
