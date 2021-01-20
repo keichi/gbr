@@ -349,7 +349,7 @@ impl IODevice for PPU {
     fn write(&mut self, addr: u16, val: u8) {
         match addr {
             // VRAM
-            0x8000...0x9fff => {
+            0x8000..=0x9fff => {
                 // VRAM is inaccessible during pixel transfer
                 if self.stat & 0x3 != 3 {
                     self.vram[(addr & 0x1fff) as usize] = val
@@ -357,7 +357,7 @@ impl IODevice for PPU {
             }
 
             // OAM
-            0xfe00...0xfe9f => {
+            0xfe00..=0xfe9f => {
                 // OAM is only accessible during H-Blank and V-Blank
                 if self.stat & 0x3 == 0 || self.stat & 0x3 == 1 {
                     self.oam[(addr & 0x00ff) as usize] = val;
@@ -400,7 +400,7 @@ impl IODevice for PPU {
     fn read(&self, addr: u16) -> u8 {
         match addr {
             // VRAM
-            0x8000...0x9fff => {
+            0x8000..=0x9fff => {
                 // VRAM is inaccessible during pixel transfer
                 if self.stat & 0x3 != 3 {
                     self.vram[(addr & 0x1fff) as usize]
@@ -410,7 +410,7 @@ impl IODevice for PPU {
             }
 
             // OAM
-            0xfe00...0xfe9f => {
+            0xfe00..=0xfe9f => {
                 // OAM is only accessible during H-Blank and V-Blank
                 if self.stat & 0x3 == 0 || self.stat & 0x3 == 1 {
                     self.oam[(addr & 0x00ff) as usize]

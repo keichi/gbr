@@ -1279,18 +1279,17 @@ impl CPU {
         let reg = opcode & 0x7;
 
         match opcode {
-            0x00...0x07 => self.rlc(reg),
-            0x08...0x0f => self.rrc(reg),
-            0x10...0x17 => self.rl(reg),
-            0x18...0x1f => self.rr(reg),
-            0x20...0x27 => self.sla(reg),
-            0x28...0x2f => self.sra(reg),
-            0x30...0x37 => self.swap(reg),
-            0x38...0x3f => self.srl(reg),
-            0x40...0x7f => self.bit(pos, reg),
-            0x80...0xbf => self.res(pos, reg),
-            0xc0...0xff => self.set(pos, reg),
-            _ => panic!("Unimplemented opcode 0xcb 0x{:x}", opcode),
+            0x00..=0x07 => self.rlc(reg),
+            0x08..=0x0f => self.rrc(reg),
+            0x10..=0x17 => self.rl(reg),
+            0x18..=0x1f => self.rr(reg),
+            0x20..=0x27 => self.sla(reg),
+            0x28..=0x2f => self.sra(reg),
+            0x30..=0x37 => self.swap(reg),
+            0x38..=0x3f => self.srl(reg),
+            0x40..=0x7f => self.bit(pos, reg),
+            0x80..=0xbf => self.res(pos, reg),
+            0xc0..=0xff => self.set(pos, reg),
         }
     }
 
@@ -1431,14 +1430,14 @@ impl CPU {
             0xf8 => self.ld_hl_sp_d8(),
 
             // Arithmethic/logical operation on 8-bit register
-            0x80...0x87 => self.add_r8(reg),
-            0x88...0x8f => self.adc_r8(reg),
-            0x90...0x97 => self.sub_r8(reg),
-            0x98...0x9f => self.sbc_r8(reg),
-            0xa0...0xa7 => self.and_r8(reg),
-            0xb0...0xb7 => self.or_r8(reg),
-            0xa8...0xaf => self.xor_r8(reg),
-            0xb8...0xbf => self.cp_r8(reg),
+            0x80..=0x87 => self.add_r8(reg),
+            0x88..=0x8f => self.adc_r8(reg),
+            0x90..=0x97 => self.sub_r8(reg),
+            0x98..=0x9f => self.sbc_r8(reg),
+            0xa0..=0xa7 => self.and_r8(reg),
+            0xb0..=0xb7 => self.or_r8(reg),
+            0xa8..=0xaf => self.xor_r8(reg),
+            0xb8..=0xbf => self.cp_r8(reg),
 
             // DAA
             0x27 => self.daa(),
@@ -1482,7 +1481,7 @@ impl CPU {
             0x05 | 0x0d | 0x15 | 0x1d | 0x25 | 0x2d | 0x35 | 0x3d => self.dec_r8(reg2),
 
             // LD r8, r8
-            0x40...0x75 | 0x77...0x7f => self.ld_r8_r8(reg2, reg),
+            0x40..=0x75 | 0x77..=0x7f => self.ld_r8_r8(reg2, reg),
 
             // LD (d16), A
             0xea => self.ld_ind_d16_a(),

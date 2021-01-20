@@ -60,29 +60,29 @@ impl MMU {
     pub fn write(&mut self, addr: u16, val: u8) {
         match addr {
             // ROM
-            0x0000...0x7fff => self.catridge.write(addr, val),
+            0x0000..=0x7fff => self.catridge.write(addr, val),
             // VRAM
-            0x8000...0x9fff => self.ppu.write(addr, val),
+            0x8000..=0x9fff => self.ppu.write(addr, val),
             // External RAM
-            0xa000...0xbfff => self.catridge.write(addr, val),
+            0xa000..=0xbfff => self.catridge.write(addr, val),
             // RAM
-            0xc000...0xdfff => self.ram[(addr & 0x1fff) as usize] = val,
+            0xc000..=0xdfff => self.ram[(addr & 0x1fff) as usize] = val,
             // Echo RAM
-            0xe000...0xfdff => self.ram[((addr - 0x2000) & 0x1fff) as usize] = val,
+            0xe000..=0xfdff => self.ram[((addr - 0x2000) & 0x1fff) as usize] = val,
             // OAM
-            0xfe00...0xfe9f => self.ppu.write(addr, val),
+            0xfe00..=0xfe9f => self.ppu.write(addr, val),
             // Joypad
             0xff00 => self.joypad.write(addr, val),
             // Timer
-            0xff04...0xff07 => self.timer.write(addr, val),
+            0xff04..=0xff07 => self.timer.write(addr, val),
             // Interrupt flag
             0xff0f => self.int_flag = val,
             // PPU
-            0xff40...0xff45 | 0xff47...0xff4b => self.ppu.write(addr, val),
+            0xff40..=0xff45 | 0xff47..=0xff4b => self.ppu.write(addr, val),
             // OAM DMA
             0xff46 => self.do_dma(val),
             // HRAM
-            0xff80...0xfffe => self.hram[(addr & 0x7f) as usize] = val,
+            0xff80..=0xfffe => self.hram[(addr & 0x7f) as usize] = val,
             // Interrupt enable
             0xffff => self.int_enable = val,
             _ => (),
@@ -93,27 +93,27 @@ impl MMU {
     pub fn read(&self, addr: u16) -> u8 {
         match addr {
             // ROM
-            0x0000...0x7fff => self.catridge.read(addr),
+            0x0000..=0x7fff => self.catridge.read(addr),
             // VRAM
-            0x8000...0x9fff => self.ppu.read(addr),
+            0x8000..=0x9fff => self.ppu.read(addr),
             // External RAM
-            0xa000...0xbfff => self.catridge.read(addr),
+            0xa000..=0xbfff => self.catridge.read(addr),
             // RAM
-            0xc000...0xdfff => self.ram[(addr & 0x1fff) as usize],
+            0xc000..=0xdfff => self.ram[(addr & 0x1fff) as usize],
             // Echo RAM
-            0xe000...0xfdff => self.ram[((addr - 0x2000) & 0x1fff) as usize],
+            0xe000..=0xfdff => self.ram[((addr - 0x2000) & 0x1fff) as usize],
             // OAM
-            0xfe00...0xfe9f => self.ppu.read(addr),
+            0xfe00..=0xfe9f => self.ppu.read(addr),
             // Joypad
             0xff00 => self.joypad.read(addr),
             // Timer
-            0xff04...0xff07 => self.timer.read(addr),
+            0xff04..=0xff07 => self.timer.read(addr),
             // Interrupt flag
             0xff0f => self.int_flag,
             // PPU
-            0xff40...0xff45 | 0xff47...0xff4b => self.ppu.read(addr),
+            0xff40..=0xff45 | 0xff47..=0xff4b => self.ppu.read(addr),
             // HRAM
-            0xff80...0xfffe => self.hram[(addr & 0x7f) as usize],
+            0xff80..=0xfffe => self.hram[(addr & 0x7f) as usize],
             // Interrupt enable
             0xffff => self.int_enable,
             _ => 0xff,

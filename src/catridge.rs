@@ -146,15 +146,15 @@ impl IODevice for Catridge {
     fn write(&mut self, addr: u16, val: u8) {
         match addr {
             // RAM enable
-            0x0000...0x1fff => self.ram_enable = val & 0x0f == 0x0a,
+            0x0000..=0x1fff => self.ram_enable = val & 0x0f == 0x0a,
             // ROM bank number (lower 5 bits)
-            0x2000...0x3fff => self.bank_no_lower = val & 0x1f,
+            0x2000..=0x3fff => self.bank_no_lower = val & 0x1f,
             // RAM bank number or ROM bank number (upper 2 bits)
-            0x4000...0x5fff => self.bank_no_upper = val & 0x03,
+            0x4000..=0x5fff => self.bank_no_upper = val & 0x03,
             // ROM/RAM mode select
-            0x6000...0x7fff => self.mode = val & 0x01 > 0,
+            0x6000..=0x7fff => self.mode = val & 0x01 > 0,
             // RAM bank 00-03
-            0xa000...0xbfff => {
+            0xa000..=0xbfff => {
                 if !self.ram_enable {
                     return;
                 }
@@ -168,14 +168,14 @@ impl IODevice for Catridge {
     fn read(&self, addr: u16) -> u8 {
         match addr {
             // ROM bank 00
-            0x0000...0x3fff => self.rom[addr as usize],
+            0x0000..=0x3fff => self.rom[addr as usize],
             // ROM bank 01-7f
-            0x4000...0x7fff => {
+            0x4000..=0x7fff => {
                 let offset = (16 * 1024) * self.rom_bank_no() as usize;
                 self.rom[(addr & 0x3fff) as usize + offset]
             }
             // RAM bank 00-03
-            0xa000...0xbfff => {
+            0xa000..=0xbfff => {
                 if !self.ram_enable {
                     return 0xff;
                 }

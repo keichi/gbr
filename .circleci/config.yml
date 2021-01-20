@@ -2,14 +2,14 @@ version: 2
 jobs:
   style:
     docker:
-      - image: circleci/rust:1.32.0-stretch
+      - image: circleci/rust:1.49.0-buster
     steps:
       - checkout
       - run: rustup component add rustfmt
       - run: rustfmt --check src/main.rs
   build:
     docker:
-      - image: circleci/rust:1.32.0-stretch
+      - image: circleci/rust:1.49.0-buster
     steps:
       - checkout
       - run: sudo apt update && sudo apt install libsdl2-dev
