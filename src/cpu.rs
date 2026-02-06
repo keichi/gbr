@@ -15,6 +15,7 @@ pub struct CPU {
     ime: bool,
     tick: u8, // This is T-cycle (4.194304 MHz), not M-cycle
     halted: bool,
+    halt_bug: bool,
 }
 
 impl CPU {
@@ -35,6 +36,7 @@ impl CPU {
             ime: false,
             tick: 0,
             halted: false,
+            halt_bug: false,
         }
     }
 
@@ -1299,6 +1301,12 @@ impl CPU {
 
         if self.ime {
             self.halted = true;
+        } else if self.mmu.int_flag & self.mmu.int_enable & 0x1f != 0 {
+            // HALT bug: IME=0 and interrupt pending
+            self.halt_bug = true;
+        } else {
+            // IME=0 and no pending interrupt: halt until interrupt occurs
+            self.halted = true;
         }
     }
 
@@ -1324,6 +1332,11 @@ impl CPU {
             self.mmu.update(self.tick);
 
             total_tick += self.tick;
+        } else if self.halted {
+            // IME=0 and halted: resume when interrupt becomes pending (no ISR)
+            if self.mmu.int_flag & self.mmu.int_enable & 0x1f != 0 {
+                self.halted = false;
+            }
         }
 
         total_tick
@@ -1371,6 +1384,12 @@ impl CPU {
     /// Fetches and executes a single instructions.
     fn fetch_and_exec(&mut self) {
         let opcode = self.read_d8();
+
+        if self.halt_bug {
+            self.pc = self.pc.wrapping_sub(1);
+            self.halt_bug = false;
+        }
+
         let reg = opcode & 7;
         let reg2 = opcode >> 3 & 7;
 
