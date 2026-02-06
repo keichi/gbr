@@ -1,4 +1,4 @@
-use io_device::IODevice;
+use crate::io_device::IODevice;
 
 /// Width of screen in pixels.
 const SCREEN_W: u8 = 160;

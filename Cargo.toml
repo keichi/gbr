@@ -8,6 +8,7 @@ readme = "README.md"
 keywords = ["gameboy", "dmg", "emulator"]
 categories = ["emulators"]
 license = "MIT"
+edition = "2021"
 include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE"]
 
 [dependencies]

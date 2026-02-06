@@ -1,4 +1,4 @@
-use mmu::MMU;
+use crate::mmu::MMU;
 
 pub struct CPU {
     pub mmu: MMU,

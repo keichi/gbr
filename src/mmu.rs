@@ -1,8 +1,8 @@
-use catridge::Catridge;
-use io_device::IODevice;
-use joypad::Joypad;
-use ppu::PPU;
-use timer::Timer;
+use crate::catridge::Catridge;
+use crate::io_device::IODevice;
+use crate::joypad::Joypad;
+use crate::ppu::PPU;
+use crate::timer::Timer;
 
 /// Memory space.
 pub struct MMU {

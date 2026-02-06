@@ -1,4 +1,4 @@
-use io_device::IODevice;
+use crate::io_device::IODevice;
 
 pub struct Timer {
     /// Timer counter
