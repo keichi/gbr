@@ -1,4 +1,4 @@
-# gbr [![CircleCI](https://circleci.com/gh/keichi/gbr.svg?style=svg)](https://circleci.com/gh/keichi/gbr)
+# gbr [![CI](https://github.com/keichi/gbr/actions/workflows/ci.yml/badge.svg)](https://github.com/keichi/gbr/actions/workflows/ci.yml)
 
 Yet another Game Boy emulator in Rust.
 
